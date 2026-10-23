@@ -15,3 +15,6 @@ dist/
 
 # Operating system
 .DS_Store
+
+# Local VS Code settings
+.vscode/
