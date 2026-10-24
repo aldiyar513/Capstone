@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import "./App.css";
+import Pieces from "./Pieces";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -112,6 +113,7 @@ export default function App() {
     <main className="auth-card">
       <h1>You’re signed in</h1>
       <p>{session.user.email}</p>
+      <Pieces key={session.user.id} />
 
       <button
         className="secondary"
