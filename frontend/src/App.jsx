@@ -74,25 +74,61 @@ export default function App() {
     setMessage("");
     setPassword("");
   }
+  async function checkBackendLogin() {
+  setBusy(true);
+  setMessage("");
 
+  try {
+    const { data, error } = await supabase.auth.getSession();
+
+    if (error) throw error;
+    if (!data.session) throw new Error("Please log in first.");
+
+    const response = await fetch("/api/v1/me", {
+      headers: {
+        Authorization: `Bearer ${data.session.access_token}`,
+      },
+    });
+
+    const user = await response.json();
+
+    if (!response.ok) {
+      throw new Error(user.error || "Backend verification failed.");
+    }
+
+    setMessage(`Flask verified ${user.email}. User ID: ${user.id}`);
+  } catch (error) {
+    setMessage(error.message || "Could not contact the backend.");
+  } finally {
+    setBusy(false);
+  }
+}
   if (checkingSession) {
     return <main className="auth-card">Loading…</main>;
   }
 
   if (session) {
-    return (
-      <main className="auth-card">
-        <h1>You’re signed in</h1>
-        <p>{session.user.email}</p>
+  return (
+    <main className="auth-card">
+      <h1>You’re signed in</h1>
+      <p>{session.user.email}</p>
 
-        <button onClick={handleLogout} disabled={busy}>
-          {busy ? "Logging out…" : "Log out"}
-        </button>
+      <button
+        className="secondary"
+        onClick={checkBackendLogin}
+        disabled={busy}
+      >
+        Check backend login
+      </button>
 
-        {message && <p role="status">{message}</p>}
-      </main>
-    );
-  }
+      <button onClick={handleLogout} disabled={busy}>
+        Log out
+      </button>
+
+      {message && <p role="status">{message}</p>}
+    </main>
+  );
+}
 
   return (
     <main className="auth-card">
