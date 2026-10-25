@@ -2,10 +2,11 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, app
 from app.routes.pieces import pieces_bp
 from app.routes.auth import auth_bp
 from app.routes.health import health_bp
+from app.routes.recordings import recordings_bp
 
 
 def create_app():
@@ -36,5 +37,14 @@ def create_app():
     app.register_blueprint(health_bp, url_prefix="/api/v1")
     app.register_blueprint(auth_bp, url_prefix="/api/v1")
     app.register_blueprint(pieces_bp, url_prefix="/api/v1")
+    for name in (
+    "R2_ENDPOINT_URL",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET_NAME",
+):
+        app.config[name] = os.getenv(name, "")
 
+    app.config["MAX_CONTENT_LENGTH"] = 26 * 1024 * 1024
+    app.register_blueprint(recordings_bp, url_prefix="/api/v1")
     return app
