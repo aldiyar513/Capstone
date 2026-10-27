@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
+import Recordings from "./Recordings";
 
 async function piecesRequest(method = "GET", body) {
   const { data, error } = await supabase.auth.getSession();
@@ -120,11 +121,16 @@ export default function Pieces() {
           {pieces.length > 0 ? (
             <ul>
               {pieces.map((piece) => (
-                <li key={piece.id}>
-                  <strong>{piece.title}</strong>
-                  {" · "}
-                  {piece.instrument}
-                </li>
+               <li key={piece.id}>
+                <strong>{piece.title}</strong>
+                {" · "}
+                {piece.instrument}
+
+                <details>
+                  <summary>Recordings</summary>
+                  <Recordings pieceId={piece.id} />
+                </details>
+              </li>
               ))}
             </ul>
           ) : (

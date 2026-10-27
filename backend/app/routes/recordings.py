@@ -164,3 +164,45 @@ def upload_recording(piece_id):
         "created_at": recording["created_at"].isoformat(),
         "upload_status": "ready",
     }), 201
+
+@recordings_bp.get("/pieces/<uuid:piece_id>/recordings")
+@require_auth
+def list_recordings(piece_id):
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id FROM public.pieces
+                WHERE id = %s AND owner_id = %s
+                """,
+                (piece_id, g.user["id"]),
+            )
+
+            if cursor.fetchone() is None:
+                return jsonify({"error": "Piece not found."}), 404
+
+            cursor.execute(
+                """
+                SELECT r.id, r.title, r.duration_ms, r.created_at
+                FROM public.recordings AS r
+                JOIN public.pieces AS p ON p.id = r.piece_id
+                WHERE r.piece_id = %s
+                  AND p.owner_id = %s
+                  AND r.upload_status = 'ready'
+                ORDER BY r.created_at DESC, r.id DESC
+                """,
+                (piece_id, g.user["id"]),
+            )
+            recordings = cursor.fetchall()
+
+    return jsonify({
+        "items": [
+            {
+                "id": str(recording["id"]),
+                "title": recording["title"],
+                "duration_ms": recording["duration_ms"],
+                "created_at": recording["created_at"].isoformat(),
+            }
+            for recording in recordings
+        ]
+    }), 200
