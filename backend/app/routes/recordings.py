@@ -12,7 +12,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from app.auth import require_auth
 from app.db import get_connection
 from app.storage import get_storage_client
-
+from datetime import datetime, timedelta, timezone
 
 recordings_bp = Blueprint("recordings", __name__)
 
@@ -205,4 +205,53 @@ def list_recordings(piece_id):
             }
             for recording in recordings
         ]
+    }), 200
+
+@recordings_bp.get("/recordings/<uuid:recording_id>/playback-url")
+@require_auth
+def get_playback_url(recording_id):
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT r.storage_key
+                FROM public.recordings AS r
+                JOIN public.pieces AS p ON p.id = r.piece_id
+                WHERE r.id = %s
+                  AND p.owner_id = %s
+                  AND r.upload_status = 'ready'
+                """,
+                (recording_id, g.user["id"]),
+            )
+
+            recording = cursor.fetchone()
+
+    if recording is None:
+        return jsonify({"error": "Recording not found."}), 404
+
+    lifetime_seconds = 900
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        seconds=lifetime_seconds
+    )
+
+    try:
+        storage = get_storage_client()
+
+        url = storage.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": current_app.config["R2_BUCKET_NAME"],
+                "Key": recording["storage_key"],
+            },
+            ExpiresIn=lifetime_seconds,
+        )
+    except Exception:
+        current_app.logger.exception("Could not generate playback URL")
+        return jsonify({
+            "error": "Playback is temporarily unavailable."
+        }), 503
+
+    return jsonify({
+        "url": url,
+        "expires_at": expires_at.isoformat(),
     }), 200

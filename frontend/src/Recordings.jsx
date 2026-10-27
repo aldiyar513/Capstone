@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
-
+import RecordingPlayer from "./RecordingPlayer";
 
 async function getToken() {
   const { data, error } = await supabase.auth.getSession();
@@ -214,9 +214,11 @@ export default function Recordings({ pieceId }) {
         <ul>
           {recordings.map((recording) => (
             <li key={recording.id}>
-              <strong>{recording.title}</strong>
-              {" · "}
-              {new Date(recording.created_at).toLocaleString()}
+                <strong>{recording.title}</strong>
+                {" · "}
+                {new Date(recording.created_at).toLocaleString()}
+
+                <RecordingPlayer recordingId={recording.id} />
             </li>
           ))}
         </ul>
