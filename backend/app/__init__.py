@@ -7,7 +7,7 @@ from app.routes.pieces import pieces_bp
 from app.routes.auth import auth_bp
 from app.routes.health import health_bp
 from app.routes.recordings import recordings_bp
-
+from app.routes.comments import comments_bp
 
 def create_app():
     backend_dir = Path(__file__).resolve().parent.parent
@@ -44,7 +44,9 @@ def create_app():
     "R2_BUCKET_NAME",
 ):
         app.config[name] = os.getenv(name, "")
+    
 
     app.config["MAX_CONTENT_LENGTH"] = 26 * 1024 * 1024
     app.register_blueprint(recordings_bp, url_prefix="/api/v1")
+    app.register_blueprint(comments_bp, url_prefix="/api/v1")
     return app

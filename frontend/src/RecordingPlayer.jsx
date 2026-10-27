@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
-
+import Comments from "./Comments";
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
 
@@ -17,7 +17,7 @@ export default function RecordingPlayer({ recordingId }) {
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-
+  const audioRef = useRef(null);
   async function loadPlayer() {
     setLoading(true);
     setError("");
@@ -52,6 +52,24 @@ export default function RecordingPlayer({ recordingId }) {
       setLoading(false);
     }
   }
+  function captureTimestamp() {
+    const audio = audioRef.current;
+
+    if (!audio || audio.readyState < 1) return null;
+
+    audio.pause();
+
+    return Math.floor(audio.currentTime * 1000);
+  }
+
+  function seekToComment(timestampMs) {
+    const audio = audioRef.current;
+
+    if (!audio || audio.readyState < 1) return;
+
+    audio.currentTime = timestampMs / 1000;
+    setCurrentTime(audio.currentTime);
+  }
 
   return (
     <div>
@@ -66,6 +84,7 @@ export default function RecordingPlayer({ recordingId }) {
       {url && (
         <>
           <audio
+            ref={audioRef}
             key={url}
             controls
             preload="metadata"
@@ -92,6 +111,13 @@ export default function RecordingPlayer({ recordingId }) {
           <p>
             {formatTime(currentTime)} / {formatTime(duration)}
           </p>
+
+          <Comments
+            recordingId={recordingId}
+            captureTimestamp={captureTimestamp}
+            onSeek={seekToComment}
+          />
+
         </>
       )}
 
