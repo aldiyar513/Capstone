@@ -129,3 +129,55 @@ def list_comments(recording_id):
     return jsonify({
         "items": [serialize_comment(comment) for comment in comments]
     }), 200
+
+@comments_bp.patch("/comments/<uuid:comment_id>")
+@require_auth
+def edit_comment(comment_id):
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify({"error": "A JSON object is required."}), 400
+
+    body = data.get("body")
+
+    if not isinstance(body, str) or not body.strip():
+        return jsonify({"error": "Comment text is required."}), 400
+
+    body = body.strip()
+
+    if len(body) > 5000:
+        return jsonify({
+            "error": "Comments must be 5,000 characters or fewer."
+        }), 400
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE public.comments AS c
+                SET body = %s
+                FROM public.recordings AS r
+                JOIN public.pieces AS p ON p.id = r.piece_id
+                WHERE c.id = %s
+                  AND c.recording_id = r.id
+                  AND c.author_id = %s
+                  AND p.owner_id = %s
+                RETURNING
+                    c.id, c.recording_id, c.author_id,
+                    c.timestamp_ms, c.body,
+                    c.created_at, c.updated_at
+                """,
+                (
+                    body,
+                    comment_id,
+                    g.user["id"],
+                    g.user["id"],
+                ),
+            )
+
+            comment = cursor.fetchone()
+
+    if comment is None:
+        return jsonify({"error": "Comment not found."}), 404
+
+    return jsonify(serialize_comment(comment)), 200

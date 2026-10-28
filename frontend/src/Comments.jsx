@@ -36,6 +36,7 @@ export default function Comments({
   onSeek,
 }) {
   const inputId = useId();
+
   const [comments, setComments] = useState([]);
   const [timestamp, setTimestamp] = useState(null);
   const [body, setBody] = useState("");
@@ -44,10 +45,23 @@ export default function Comments({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const [editingId, setEditingId] = useState(null);
+  const [editBody, setEditBody] = useState("");
+
   const url = `/api/v1/recordings/${recordingId}/comments`;
 
   useEffect(() => {
     const controller = new AbortController();
+
+    // Clear the previous recording's data when the recording changes.
+    setComments([]);
+    setTimestamp(null);
+    setBody("");
+    setEditingId(null);
+    setEditBody("");
+    setError("");
+    setNotice("");
+    setLoading(true);
 
     async function loadComments() {
       try {
@@ -91,7 +105,7 @@ export default function Comments({
   async function handleSave(event) {
     event.preventDefault();
 
-    if (timestamp === null || !body.trim()) return;
+    if (saving || timestamp === null || !body.trim()) return;
 
     setSaving(true);
     setError("");
@@ -122,6 +136,53 @@ export default function Comments({
     }
   }
 
+  function startEditing(comment) {
+    setEditingId(comment.id);
+    setEditBody(comment.body);
+    setError("");
+    setNotice("");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditBody("");
+  }
+
+  async function handleEditSave(event) {
+    event.preventDefault();
+
+    if (saving || editingId === null || !editBody.trim()) return;
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const updated = await commentsRequest(
+        `/api/v1/comments/${editingId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            body: editBody.trim(),
+          }),
+        }
+      );
+
+      setComments((previous) =>
+        previous.map((comment) =>
+          comment.id === updated.id ? updated : comment
+        )
+      );
+
+      cancelEditing();
+      setNotice("Comment updated.");
+    } catch (error) {
+      setError(error.message || "Could not update the comment.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section>
       <h4>Comments</h4>
@@ -129,7 +190,7 @@ export default function Comments({
       <button
         type="button"
         onClick={startComment}
-        disabled={saving}
+        disabled={saving || loading || editingId !== null}
       >
         {timestamp === null ? "Add comment here" : "Use current time"}
       </button>
@@ -151,6 +212,17 @@ export default function Comments({
           <button type="submit" disabled={saving || !body.trim()}>
             {saving ? "Saving…" : "Save comment"}
           </button>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => {
+              setTimestamp(null);
+              setBody("");
+            }}
+          >
+            Cancel
+          </button>
         </form>
       )}
 
@@ -171,12 +243,60 @@ export default function Comments({
                 {formatTimestamp(comment.timestamp_ms)}
               </button>
 
-              <p style={{ whiteSpace: "pre-wrap" }}>{comment.body}</p>
+              {editingId === comment.id ? (
+                <form onSubmit={handleEditSave}>
+                  <label htmlFor={`${inputId}-edit-${comment.id}`}>
+                    Edit comment
+                  </label>
+
+                  <textarea
+                    id={`${inputId}-edit-${comment.id}`}
+                    value={editBody}
+                    onChange={(event) => setEditBody(event.target.value)}
+                    maxLength={5000}
+                    disabled={saving}
+                    required
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={saving || !editBody.trim()}
+                  >
+                    {saving ? "Saving…" : "Save changes"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={cancelEditing}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <p style={{ whiteSpace: "pre-wrap" }}>
+                    {comment.body}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => startEditing(comment)}
+                    disabled={
+                      saving ||
+                      editingId !== null ||
+                      timestamp !== null
+                    }
+                  >
+                    Edit
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>
       ) : (
-        <p>No comments loaded.</p>
+        !error && <p>No comments yet.</p>
       )}
     </section>
   );
