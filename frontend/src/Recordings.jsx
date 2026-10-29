@@ -11,6 +11,13 @@ async function getToken() {
   return data.session.access_token;
 }
 
+function formatDuration(milliseconds) {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function uploadAudio(url, token, formData, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -39,15 +46,19 @@ function uploadAudio(url, token, formData, onProgress) {
     };
 
     xhr.onerror = () => {
-      reject(new Error(
-        "Connection lost. Refresh to check whether the recording saved."
-      ));
+      reject(
+        new Error(
+          "Connection lost. Refresh to check whether the recording saved."
+        )
+      );
     };
 
     xhr.ontimeout = () => {
-      reject(new Error(
-        "Request timed out. Refresh to check whether the recording saved."
-      ));
+      reject(
+        new Error(
+          "Request timed out. Refresh to check whether the recording saved."
+        )
+      );
     };
 
     xhr.open("POST", url);
@@ -62,6 +73,7 @@ export default function Recordings({ pieceId }) {
   const fileInput = useRef(null);
 
   const [recordings, setRecordings] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [title, setTitle] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +90,7 @@ export default function Recordings({ pieceId }) {
 
     async function loadRecordings() {
       setLoading(true);
+      setError("");
 
       try {
         const token = await getToken();
@@ -93,7 +106,13 @@ export default function Recordings({ pieceId }) {
         }
 
         if (!controller.signal.aborted) {
-          setRecordings(result.items);
+          setRecordings(
+            [...result.items].sort(
+              (a, b) =>
+                new Date(b.created_at).getTime() -
+                new Date(a.created_at).getTime()
+            )
+          );
         }
       } catch (error) {
         if (!controller.signal.aborted) {
@@ -150,7 +169,11 @@ export default function Recordings({ pieceId }) {
 
       setTitle("");
       setFile(null);
-      fileInput.current.value = "";
+
+      if (fileInput.current) {
+        fileInput.current.value = "";
+      }
+
       setNotice("Recording saved.");
       setRevision((previous) => previous + 1);
     } catch (error) {
@@ -158,6 +181,44 @@ export default function Recordings({ pieceId }) {
     } finally {
       setUploading(false);
     }
+  }
+
+  function openRecording(recordingId) {
+    // The file input disappears in the review view, so clear its draft.
+    setFile(null);
+    setNotice("");
+    setSelectedId(recordingId);
+  }
+
+  const selectedRecording =
+    recordings.find((recording) => recording.id === selectedId) || null;
+
+  if (selectedRecording) {
+    return (
+      <section>
+        <button type="button" onClick={() => setSelectedId(null)}>
+          ← Back to recordings
+        </button>
+
+        <h3>{selectedRecording.title}</h3>
+
+        <p>
+          Uploaded{" "}
+          {new Date(selectedRecording.created_at).toLocaleString()}
+          {selectedRecording.duration_ms != null && (
+            <>
+              {" · "}
+              {formatDuration(selectedRecording.duration_ms)}
+            </>
+          )}
+        </p>
+
+        <RecordingPlayer
+          key={selectedRecording.id}
+          recordingId={selectedRecording.id}
+        />
+      </section>
+    );
   }
 
   return (
@@ -208,22 +269,33 @@ export default function Recordings({ pieceId }) {
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
 
+      <h4>Recording history</h4>
+
       {loading ? (
         <p>Loading recordings…</p>
       ) : recordings.length > 0 ? (
         <ul>
           {recordings.map((recording) => (
             <li key={recording.id}>
-                <strong>{recording.title}</strong>
-                {" · "}
-                {new Date(recording.created_at).toLocaleString()}
+              <button
+                type="button"
+                onClick={() => openRecording(recording.id)}
+                disabled={uploading}
+              >
+                {recording.title}
+              </button>
 
-                <RecordingPlayer recordingId={recording.id} />
+              <p>
+                Uploaded {new Date(recording.created_at).toLocaleString()}
+                {recording.duration_ms != null && (
+                  <>{" · "}{formatDuration(recording.duration_ms)}</>
+                )}
+              </p>
             </li>
           ))}
         </ul>
       ) : (
-        <p>No recordings loaded.</p>
+        !error && <p>No recordings yet. Upload your first attempt above.</p>
       )}
     </section>
   );
