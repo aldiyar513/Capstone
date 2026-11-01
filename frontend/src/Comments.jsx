@@ -44,7 +44,6 @@ export default function Comments({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState("");
 
@@ -53,7 +52,6 @@ export default function Comments({
   useEffect(() => {
     const controller = new AbortController();
 
-    // Clear the previous recording's data when the recording changes.
     setComments([]);
     setTimestamp(null);
     setBody("");
@@ -184,10 +182,11 @@ export default function Comments({
   }
 
   return (
-    <section>
+    <section className="comments">
       <h4>Comments</h4>
 
       <button
+        className="comments-add"
         type="button"
         onClick={startComment}
         disabled={saving || loading || editingId !== null}
@@ -196,7 +195,7 @@ export default function Comments({
       </button>
 
       {timestamp !== null && (
-        <form onSubmit={handleSave}>
+        <form className="comments-form" onSubmit={handleSave}>
           <p>Comment at {formatTimestamp(timestamp)}</p>
 
           <label htmlFor={inputId}>Your note</label>
@@ -209,20 +208,23 @@ export default function Comments({
             required
           />
 
-          <button type="submit" disabled={saving || !body.trim()}>
-            {saving ? "Saving…" : "Save comment"}
-          </button>
+          <div className="comments-actions">
+            <button type="submit" disabled={saving || !body.trim()}>
+              {saving ? "Saving…" : "Save comment"}
+            </button>
 
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => {
-              setTimestamp(null);
-              setBody("");
-            }}
-          >
-            Cancel
-          </button>
+            <button
+              className="comments-cancel"
+              type="button"
+              disabled={saving}
+              onClick={() => {
+                setTimestamp(null);
+                setBody("");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 
@@ -232,10 +234,11 @@ export default function Comments({
       {loading ? (
         <p>Loading comments…</p>
       ) : comments.length > 0 ? (
-        <ul>
+        <ul className="comments-list">
           {comments.map((comment) => (
-            <li key={comment.id}>
+            <li className="comment-row" key={comment.id}>
               <button
+                className="comment-timestamp"
                 type="button"
                 aria-label={`Seek to ${formatTimestamp(comment.timestamp_ms)}`}
                 onClick={() => onSeek(comment.timestamp_ms)}
@@ -244,7 +247,10 @@ export default function Comments({
               </button>
 
               {editingId === comment.id ? (
-                <form onSubmit={handleEditSave}>
+                <form
+                  className="comments-form comment-edit-form"
+                  onSubmit={handleEditSave}
+                >
                   <label htmlFor={`${inputId}-edit-${comment.id}`}>
                     Edit comment
                   </label>
@@ -258,29 +264,34 @@ export default function Comments({
                     required
                   />
 
-                  <button
-                    type="submit"
-                    disabled={saving || !editBody.trim()}
-                  >
-                    {saving ? "Saving…" : "Save changes"}
-                  </button>
+                  <div className="comments-actions">
+                    <button
+                      type="submit"
+                      disabled={saving || !editBody.trim()}
+                    >
+                      {saving ? "Saving…" : "Save changes"}
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={cancelEditing}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
+                    <button
+                      className="comments-cancel"
+                      type="button"
+                      onClick={cancelEditing}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </form>
               ) : (
                 <>
-                  <p style={{ whiteSpace: "pre-wrap" }}>
-                    {comment.body}
-                  </p>
+                  <p className="comment-body">{comment.body}</p>
 
                   <button
+                    className="comment-edit"
                     type="button"
+                    aria-label={`Edit comment at ${formatTimestamp(
+                      comment.timestamp_ms
+                    )}`}
                     onClick={() => startEditing(comment)}
                     disabled={
                       saving ||
