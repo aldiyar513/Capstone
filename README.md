@@ -1,4 +1,19 @@
 # Capstone
+This web application helps musicians review their practice recordings. Users can organise recordings by piece or exercise, upload
+audio, and add timestamped comments. Saved recordings and notes help
+users revisit earlier attempts and identify sections to improve.
+
+The current version supports email-and-password authentication,
+private recordings, audio playback, recording history, and adding
+and editing timestamped comments.
+
+## Technology stack
+
+- **Frontend:** React with Vite, JavaScript and CSS.
+- **Backend:** Python with Flask.
+- **Database:** PostgreSQL hosted on Supabase.
+- **Authentication:** Supabase Auth.
+- **Audio storage:** Cloudflare R2.
 
 ## Documentation
 
