@@ -11,6 +11,6 @@
 
 ### Design and testing
 
-- [Initial Figma design](https://www.figma.com/design/FQVnA4cotzMorBJeWZPvxA?node-id=0-1)
+- [Initial Figma design](https://www.figma.com/design/FQVnA4cotzMorBJeWZPvxA/Practice-Studio-%C2%B7-Teal---Peach?node-id=21-427&p=f)
 - [Functionality test results](https://docs.google.com/document/d/1-5OtzkUCiRZ7mgYrNqU2HtmfWiZ-BBDcCBOymS5b_j4/edit?usp=sharing)
 - [Design walkthrough with potential user](https://docs.google.com/document/d/1F2PUkjo_Q_aksus0g4DAB_Jfi1Msyac5HBqURKfC3Ps/edit?usp=sharing)

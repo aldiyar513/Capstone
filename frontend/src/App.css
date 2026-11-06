@@ -1,8 +1,8 @@
 .auth-card {
   width: min(100%, 400px);
   padding: 32px;
-  background: #202027;
-  border: 1px solid #41414d;
+  background: #ffffff;
+  border: 1px solid #c6d5d8;
   border-radius: 16px;
 }
 
@@ -25,14 +25,18 @@
 
 .auth-card input {
   width: 100%;
-  color: #f5f5f7;
-  background: #141419;
-  border: 1px solid #737383;
+  color: #203b43;
+  background: #ffffff;
+  border: 1px solid #7c969d;
+}
+
+.auth-card input::placeholder {
+  color: #5c737b;
 }
 
 .auth-card button {
-  color: #fff;
-  background: #6d42c7;
+  color: #ffffff;
+  background: #176171;
   border: 1px solid transparent;
   cursor: pointer;
 }
@@ -44,8 +48,9 @@
 .auth-card .secondary {
   width: 100%;
   margin-top: 20px;
+  color: #203b43;
   background: transparent;
-  border-color: #737383;
+  border-color: #7c969d;
 }
 
 .auth-card button:disabled {
@@ -54,13 +59,21 @@
 }
 
 .auth-card :focus-visible {
-  outline: 3px solid #c4b5fd;
+  outline: 3px solid #176171;
   outline-offset: 3px;
 }
 
 .auth-card p {
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.auth-card a {
+  color: #176171;
+}
+
+.auth-card progress {
+  accent-color: #176171;
 }
 
 /* Comments section */
@@ -99,16 +112,16 @@
   align-items: start;
   gap: 12px;
   padding: 12px;
-  background: #19191f;
-  border: 1px solid #41414d;
+  background: #f3f7f6;
+  border: 1px solid #c6d5d8;
   border-radius: 10px;
 }
 
 .auth-card .comment-timestamp {
   min-width: 58px;
-  background: #302447;
-  border-color: #9273cf;
-  color: #eee6ff;
+  background: #dceee8;
+  border-color: #7c969d;
+  color: #203b43;
   font-variant-numeric: tabular-nums;
 }
 
@@ -122,11 +135,16 @@
   overflow-wrap: anywhere;
 }
 
-.auth-card .comment-edit,
+.auth-card .comment-edit {
+  background: #f8d5c3;
+  border-color: #b78670;
+  color: #203b43;
+}
+
 .auth-card .comments-cancel {
   background: transparent;
-  border-color: #737383;
-  color: #f5f5f7;
+  border-color: #7c969d;
+  color: #203b43;
 }
 
 .auth-card .comments-form {
@@ -150,13 +168,17 @@
   width: 100%;
   min-height: 100px;
   padding: 10px;
-  border: 1px solid #737383;
+  border: 1px solid #7c969d;
   border-radius: 8px;
-  background: #141419;
-  color: #f5f5f7;
+  background: #ffffff;
+  color: #203b43;
   font: inherit;
   line-height: 1.5;
   resize: vertical;
+}
+
+.auth-card .comments textarea::placeholder {
+  color: #5c737b;
 }
 
 .auth-card .comments-actions {
