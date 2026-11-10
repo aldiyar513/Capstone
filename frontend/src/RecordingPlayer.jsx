@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import Comments from "./Comments";
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
 
@@ -12,46 +13,72 @@ function formatTime(seconds) {
 }
 
 export default function RecordingPlayer({ recordingId }) {
+  const audioRef = useRef(null);
+
   const [url, setUrl] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const audioRef = useRef(null);
-  async function loadPlayer() {
-    setLoading(true);
-    setError("");
+  const [revision, setRevision] = useState(0);
 
-    try {
-      const { data, error } = await supabase.auth.getSession();
+  // Load the audio automatically when the recording is opened.
+  useEffect(() => {
+    const controller = new AbortController();
 
-      if (error) throw error;
-      if (!data.session) throw new Error("Please log in first.");
-
-      const response = await fetch(
-        `/api/v1/recordings/${recordingId}/playback-url`,
-        {
-          headers: {
-            Authorization: `Bearer ${data.session.access_token}`,
-          },
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Could not open recording.");
-      }
-
+    async function loadPlayer() {
+      setLoading(true);
+      setError("");
+      setUrl("");
       setCurrentTime(0);
       setDuration(0);
-      setUrl(result.url);
-    } catch (error) {
-      setError(error.message || "Could not open recording.");
-    } finally {
-      setLoading(false);
+
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (controller.signal.aborted) return;
+        if (error) throw error;
+        if (!data.session) throw new Error("Please log in first.");
+
+        const response = await fetch(
+          `/api/v1/recordings/${recordingId}/playback-url`,
+          {
+            headers: {
+              Authorization: `Bearer ${data.session.access_token}`,
+            },
+            signal: controller.signal,
+          }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || "Could not load recording.");
+        }
+
+        if (typeof result.url !== "string" || !result.url.trim()) {
+          throw new Error("No audio link was returned. Please try again.");
+        }
+
+        if (!controller.signal.aborted) {
+          setUrl(result.url);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setError(error.message || "Could not load recording.");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
     }
-  }
+
+    loadPlayer();
+
+    return () => controller.abort();
+  }, [recordingId, revision]);
+
   function captureTimestamp() {
     const audio = audioRef.current;
 
@@ -65,27 +92,46 @@ export default function RecordingPlayer({ recordingId }) {
   function seekToComment(timestampMs) {
     const audio = audioRef.current;
 
-    if (!audio || audio.readyState < 1) return;
+    if (
+      !audio ||
+      audio.readyState < 1 ||
+      !Number.isFinite(timestampMs)
+    ) {
+      return;
+    }
 
-    audio.currentTime = timestampMs / 1000;
+    const targetTime = Math.max(0, timestampMs / 1000);
+
+    audio.currentTime = Number.isFinite(audio.duration)
+      ? Math.min(targetTime, audio.duration)
+      : targetTime;
+
     setCurrentTime(audio.currentTime);
   }
 
   return (
     <div>
-      <button onClick={loadPlayer} disabled={loading}>
-        {loading
-          ? "Opening…"
-          : url
-            ? "Reload audio"
-            : "Open recording"}
-      </button>
+      {loading && <p role="status">Loading audio…</p>}
+
+      {error && (
+        <div>
+          <p role="alert">{error}</p>
+
+          <button
+            type="button"
+            onClick={() => setRevision((previous) => previous + 1)}
+            disabled={loading}
+          >
+            Reload audio
+          </button>
+        </div>
+      )}
 
       {url && (
         <>
           <audio
             ref={audioRef}
-            key={url}
+            key={`${recordingId}-${revision}`}
             controls
             preload="metadata"
             src={url}
@@ -100,8 +146,8 @@ export default function RecordingPlayer({ recordingId }) {
             }
             onError={() =>
               setError(
-                "Audio could not load. Try Reload audio. " +
-                "If it still fails, the format may be unsupported."
+                "Audio could not load. Try reloading it. " +
+                  "If it still fails, the format may be unsupported."
               )
             }
           >
@@ -117,11 +163,8 @@ export default function RecordingPlayer({ recordingId }) {
             captureTimestamp={captureTimestamp}
             onSeek={seekToComment}
           />
-
         </>
       )}
-
-      {error && <p role="alert">{error}</p>}
     </div>
   );
 }

@@ -198,21 +198,24 @@ export default function Pieces() {
 
   if (view === "piece" && selectedPiece) {
     return (
-      <section>
-        <button
-          type="button"
-          className="back-button"
-          onClick={returnToList}
-        >
-          ← My pieces
-        </button>
+      <section className="piece-workspace">
+        <div className="piece-context-bar">
+          <button
+            type="button"
+            className="context-back"
+            onClick={returnToList}
+          >
+            ← My pieces
+          </button>
 
-        <div className="page-heading">
-          <div>
-            <h1 ref={headingRef} tabIndex={-1}>
+          <div className="piece-context">
+            <span className="piece-context-title">
               {selectedPiece.title}
-            </h1>
-            <p className="muted">{selectedPiece.instrument}</p>
+            </span>
+
+            <span className="piece-context-instrument">
+              {selectedPiece.instrument}
+            </span>
           </div>
         </div>
 
@@ -225,7 +228,6 @@ export default function Pieces() {
       </section>
     );
   }
-
   return (
     <section>
       <div className="page-heading">

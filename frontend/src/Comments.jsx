@@ -46,6 +46,7 @@ export default function Comments({
   const [notice, setNotice] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editBody, setEditBody] = useState("");
+  const [expanded, setExpanded] = useState(true);
 
   const url = `/api/v1/recordings/${recordingId}/comments`;
 
@@ -96,7 +97,7 @@ export default function Comments({
       setError("Wait for the audio to load first.");
       return;
     }
-
+    setExpanded(true);
     setTimestamp(position);
   }
 
@@ -181,134 +182,171 @@ export default function Comments({
     }
   }
 
-  return (
-    <section className="comments">
-      <h4>Comments</h4>
-
-      <button
-        className="comments-add"
-        type="button"
-        onClick={startComment}
-        disabled={saving || loading || editingId !== null}
-      >
-        {timestamp === null ? "Add comment here" : "Use current time"}
-      </button>
-
-      {timestamp !== null && (
-        <form className="comments-form" onSubmit={handleSave}>
-          <p>Comment at {formatTimestamp(timestamp)}</p>
-
-          <label htmlFor={inputId}>Your note</label>
-          <textarea
-            id={inputId}
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            maxLength={5000}
-            disabled={saving}
-            required
-          />
-
-          <div className="comments-actions">
-            <button type="submit" disabled={saving || !body.trim()}>
-              {saving ? "Saving…" : "Save comment"}
-            </button>
-
+    return (
+      <section className="comments">
+        <div className="comments-header">
+          <h4 className="comments-heading">
             <button
-              className="comments-cancel"
               type="button"
-              disabled={saving}
-              onClick={() => {
-                setTimestamp(null);
-                setBody("");
-              }}
+              className="comments-toggle"
+              aria-expanded={expanded}
+              aria-controls={`${inputId}-list`}
+              onClick={() => setExpanded((previous) => !previous)}
             >
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
-
-      {loading ? (
-        <p>Loading comments…</p>
-      ) : comments.length > 0 ? (
-        <ul className="comments-list">
-          {comments.map((comment) => (
-            <li className="comment-row" key={comment.id}>
-              <button
-                className="comment-timestamp"
-                type="button"
-                aria-label={`Seek to ${formatTimestamp(comment.timestamp_ms)}`}
-                onClick={() => onSeek(comment.timestamp_ms)}
+              <svg
+                className="comments-chevron"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
               >
-                {formatTimestamp(comment.timestamp_ms)}
+                <path d="m9 5 7 7-7 7" />
+              </svg>
+
+              <span>Comments</span>
+
+              {!loading && (
+                <span className="comments-count">
+                  {comments.length}
+                </span>
+              )}
+            </button>
+          </h4>
+
+          <button
+            className="comments-add"
+            type="button"
+            onClick={startComment}
+            disabled={saving || loading || editingId !== null}
+          >
+            {timestamp === null ? "+ Add comment" : "Use current time"}
+          </button>
+        </div>
+
+        {timestamp !== null && (
+          <form className="comments-form" onSubmit={handleSave}>
+            <p>Comment at {formatTimestamp(timestamp)}</p>
+
+            <label htmlFor={inputId}>Your note</label>
+            <textarea
+              id={inputId}
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              maxLength={5000}
+              disabled={saving}
+              required
+            />
+
+            <div className="comments-actions">
+              <button type="submit" disabled={saving || !body.trim()}>
+                {saving ? "Saving…" : "Save comment"}
               </button>
 
-              {editingId === comment.id ? (
-                <form
-                  className="comments-form comment-edit-form"
-                  onSubmit={handleEditSave}
-                >
-                  <label htmlFor={`${inputId}-edit-${comment.id}`}>
-                    Edit comment
-                  </label>
+              <button
+                className="comments-cancel"
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  setTimestamp(null);
+                  setBody("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
 
-                  <textarea
-                    id={`${inputId}-edit-${comment.id}`}
-                    value={editBody}
-                    onChange={(event) => setEditBody(event.target.value)}
-                    maxLength={5000}
-                    disabled={saving}
-                    required
-                  />
+        {error && <p role="alert">{error}</p>}
+        {notice && <p role="status">{notice}</p>}
 
-                  <div className="comments-actions">
-                    <button
-                      type="submit"
-                      disabled={saving || !editBody.trim()}
-                    >
-                      {saving ? "Saving…" : "Save changes"}
-                    </button>
-
-                    <button
-                      className="comments-cancel"
-                      type="button"
-                      onClick={cancelEditing}
-                      disabled={saving}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <>
-                  <p className="comment-body">{comment.body}</p>
-
+        <div id={`${inputId}-list`} hidden={!expanded}>
+          {loading ? (
+            <p role="status">Loading comments…</p>
+          ) : comments.length > 0 ? (
+            <ul className="comments-list">
+              {comments.map((comment) => (
+                <li className="comment-row" key={comment.id}>
                   <button
-                    className="comment-edit"
+                    className="comment-timestamp"
                     type="button"
-                    aria-label={`Edit comment at ${formatTimestamp(
+                    aria-label={`Seek to ${formatTimestamp(
                       comment.timestamp_ms
                     )}`}
-                    onClick={() => startEditing(comment)}
-                    disabled={
-                      saving ||
-                      editingId !== null ||
-                      timestamp !== null
-                    }
+                    onClick={() => onSeek(comment.timestamp_ms)}
                   >
-                    Edit
+                    {formatTimestamp(comment.timestamp_ms)}
                   </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        !error && <p>No comments yet.</p>
-      )}
-    </section>
-  );
+
+                  {editingId === comment.id ? (
+                    <form
+                      className="comments-form comment-edit-form"
+                      onSubmit={handleEditSave}
+                    >
+                      <label htmlFor={`${inputId}-edit-${comment.id}`}>
+                        Edit comment
+                      </label>
+
+                      <textarea
+                        id={`${inputId}-edit-${comment.id}`}
+                        value={editBody}
+                        onChange={(event) => setEditBody(event.target.value)}
+                        maxLength={5000}
+                        disabled={saving}
+                        required
+                      />
+
+                      <div className="comments-actions">
+                        <button
+                          type="submit"
+                          disabled={saving || !editBody.trim()}
+                        >
+                          {saving ? "Saving…" : "Save changes"}
+                        </button>
+
+                        <button
+                          className="comments-cancel"
+                          type="button"
+                          onClick={cancelEditing}
+                          disabled={saving}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <>
+                      <p className="comment-body">{comment.body}</p>
+
+                      <button
+                        className="comment-edit"
+                        type="button"
+                        aria-label={`Edit comment at ${formatTimestamp(
+                          comment.timestamp_ms
+                        )}`}
+                        onClick={() => startEditing(comment)}
+                        disabled={
+                          saving ||
+                          editingId !== null ||
+                          timestamp !== null
+                        }
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            !error && <p>No comments yet.</p>
+          )}
+        </div>
+      </section>
+    );
 }

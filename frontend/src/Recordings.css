@@ -1,0 +1,245 @@
+.recording-history-heading,
+.recording-history-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.recording-history-heading {
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.recording-history-heading h3,
+.recording-upload-dialog h3 {
+  margin: 0;
+}
+
+ul.recording-history-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.recording-history-list > .recording-history-row {
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px solid #c6d5d8;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.recording-history-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recording-history-row p {
+  margin: 4px 0 0;
+  color: #596f77;
+}
+
+.recording-history-row button {
+  flex-shrink: 0;
+}
+
+.recording-upload-dialog {
+  box-sizing: border-box;
+  width: min(500px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  padding: 24px;
+  border: 1px solid #c6d5d8;
+  border-radius: 16px;
+  color: #203b43;
+  background: #fff;
+  box-shadow: 0 16px 48px rgb(32 59 67 / 20%);
+}
+
+.recording-upload-dialog::backdrop {
+  background: rgb(32 59 67 / 45%);
+}
+
+.recording-upload-dialog form {
+  display: grid;
+  gap: 12px;
+}
+
+:is(.workspace-panel, .auth-card) .recording-upload-dialog form {
+  margin: 0;
+}
+
+.recording-upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+:is(.workspace-panel, .auth-card) .recording-upload-actions button {
+  width: auto;
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  ul.recording-history-list > .recording-history-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Compact piece context above the recording */
+
+.piece-workspace {
+  width: 100%;
+  min-width: 0;
+}
+
+.piece-context-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding-bottom: 14px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #d5dfe1;
+}
+
+.piece-context {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  min-width: 0;
+}
+
+.piece-context-title {
+  color: #203b43;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.piece-context-instrument {
+  color: #596f77;
+  font-size: 14px;
+}
+
+/* Navigation is secondary to playback. */
+
+.workspace-panel .context-back,
+.workspace-panel .review-back {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  color: #256675;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workspace-panel .context-back:hover,
+.workspace-panel .review-back:hover {
+  color: #203b43;
+  background: #e5efeb;
+  text-decoration: none;
+}
+
+.workspace-panel .context-back {
+  margin-left: -12px;
+}
+
+.workspace-panel .review-back {
+  flex-shrink: 0;
+  border-color: #c6d5d8;
+}
+
+/* Recording title and history navigation share one row. */
+
+.piece-workspace .recordings-content {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.recording-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.recording-review-header > div {
+  min-width: 0;
+}
+
+.recording-review-header h1 {
+  margin: 0;
+  color: #203b43;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.recording-review-header .recording-review-meta {
+  margin: 8px 0 0;
+  color: #596f77;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Player sits immediately below the recording title. */
+
+.recording-review audio {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* Keep the extra time readout understated. */
+
+.recording-review audio + p {
+  margin: 8px 0 0;
+  color: #596f77;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Comments follow the player with a clear section boundary. */
+
+.recording-review .comments {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #d5dfe1;
+}
+
+.recording-review .comments h4 {
+  margin: 0 0 12px;
+  font-size: 20px;
+}
+
+@media (max-width: 600px) {
+  .piece-context-bar {
+    gap: 8px 16px;
+    margin-bottom: 20px;
+  }
+
+  .recording-review-header {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .workspace-panel .review-back {
+    min-height: 44px;
+  }
+}
