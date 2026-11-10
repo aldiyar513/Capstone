@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import "./App.css";
 import Pieces from "./Pieces";
+import WorkspaceShell from "./WorkspaceShell";
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -11,6 +12,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [workspaceVersion, setWorkspaceVersion] = useState(0);
 
   useEffect(() => {
     const {
@@ -109,28 +111,26 @@ export default function App() {
   }
 
   if (session) {
-  return (
-    <main className="auth-card">
-      <h1>You’re signed in</h1>
-      <p>{session.user.email}</p>
-      <Pieces key={session.user.id} />
+    const accountName =
+      session.user.user_metadata?.full_name ||
+      session.user.user_metadata?.name ||
+      session.user.email?.split("@")[0] ||
+      "Account";
 
-      <button
-        className="secondary"
-        onClick={checkBackendLogin}
-        disabled={busy}
+    return (
+      <WorkspaceShell
+        accountName={accountName}
+        email={session.user.email}
+        busy={busy}
+        onHome={() => setWorkspaceVersion((previous) => previous + 1)}
+        onLogout={handleLogout}
       >
-        Check backend login
-      </button>
+        {message && <p role="status">{message}</p>}
 
-      <button onClick={handleLogout} disabled={busy}>
-        Log out
-      </button>
-
-      {message && <p role="status">{message}</p>}
-    </main>
-  );
-}
+        <Pieces key={`${session.user.id}-${workspaceVersion}`} />
+      </WorkspaceShell>
+    );
+  }
 
   return (
     <main className="auth-card">

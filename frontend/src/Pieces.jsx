@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import Recordings from "./Recordings";
 
@@ -30,10 +30,16 @@ export default function Pieces() {
   const [pieces, setPieces] = useState([]);
   const [title, setTitle] = useState("");
   const [instrument, setInstrument] = useState("");
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState("list");
+  const [selectedPiece, setSelectedPiece] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+
+  const headingRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -42,17 +48,13 @@ export default function Pieces() {
       try {
         const result = await piecesRequest();
 
-        if (active) {
-          setPieces(result.items);
-        }
+        if (active) setPieces(result.items);
       } catch (error) {
         if (active) {
           setError(error.message || "Could not load pieces.");
         }
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
     }
 
@@ -63,22 +65,61 @@ export default function Pieces() {
     };
   }, []);
 
+  useEffect(() => {
+    headingRef.current?.focus({ preventScroll: true });
+  }, [view]);
+
+  function openCreate() {
+    setError("");
+    setNotice("");
+    setShowDetails(false);
+    setView("create");
+  }
+
+  function openPiece(piece) {
+    setSelectedPiece(piece);
+    setError("");
+    setNotice("");
+    setShowDetails(false);
+    setView("piece");
+  }
+
+  function returnToList() {
+    setView("list");
+    setSelectedPiece(null);
+    setShowDetails(false);
+    setError("");
+  }
+
   async function handleCreate(event) {
     event.preventDefault();
+
+    if (saving) return;
+
+    const cleanTitle = title.trim();
+    const cleanInstrument = instrument.trim();
+
+    if (!cleanTitle || !cleanInstrument) {
+      setError("Enter a title and instrument.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     setNotice("");
 
     try {
       const piece = await piecesRequest("POST", {
-        title,
-        instrument,
+        title: cleanTitle,
+        instrument: cleanInstrument,
       });
 
       setPieces((previous) => [piece, ...previous]);
       setTitle("");
       setInstrument("");
+      setQuery("");
       setNotice("Piece saved.");
+      setView("list");
     } catch (error) {
       setError(error.message || "Could not save the piece.");
     } finally {
@@ -86,61 +127,185 @@ export default function Pieces() {
     }
   }
 
-  return (
-    <section>
-      <h2>Your pieces</h2>
+  const search = query.trim().toLowerCase();
 
-      {loading ? (
-        <p>Loading pieces…</p>
-      ) : (
-        <>
-          <form onSubmit={handleCreate}>
-            <label htmlFor="piece-title">Title</label>
-            <input
-              id="piece-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              disabled={saving}
-              required
-            />
+  const filteredPieces = pieces.filter((piece) =>
+    `${piece.title} ${piece.instrument}`.toLowerCase().includes(search)
+  );
 
-            <label htmlFor="piece-instrument">Instrument</label>
-            <input
-              id="piece-instrument"
-              value={instrument}
-              onChange={(event) => setInstrument(event.target.value)}
-              disabled={saving}
-              required
-            />
+  if (view === "create") {
+    return (
+      <section>
+        <button
+          type="button"
+          className="back-button"
+          onClick={returnToList}
+          disabled={saving}
+        >
+          ← My pieces
+        </button>
 
-            <button type="submit" disabled={saving}>
+        <div className="page-heading">
+          <h1 ref={headingRef} tabIndex={-1}>
+            New piece
+          </h1>
+        </div>
+
+        <form className="piece-form surface-card" onSubmit={handleCreate}>
+          <label htmlFor="piece-title">Title</label>
+          <input
+            id="piece-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="For example, Fur Elise"
+            disabled={saving}
+            required
+          />
+
+          <label htmlFor="piece-instrument">Instrument</label>
+          <input
+            id="piece-instrument"
+            value={instrument}
+            onChange={(event) => setInstrument(event.target.value)}
+            placeholder="For example, Piano"
+            disabled={saving}
+            required
+          />
+
+          {error && <p className="error-message" role="alert">{error}</p>}
+
+          <div className="form-actions">
+            <button
+              type="submit"
+              disabled={saving || !title.trim() || !instrument.trim()}
+            >
               {saving ? "Saving…" : "Create piece"}
             </button>
-          </form>
 
-          {pieces.length > 0 ? (
-            <ul>
-              {pieces.map((piece) => (
-               <li key={piece.id}>
-                <strong>{piece.title}</strong>
-                {" · "}
-                {piece.instrument}
+            <button
+              type="button"
+              className="secondary"
+              onClick={returnToList}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </section>
+    );
+  }
 
-                <details>
-                  <summary>Recordings</summary>
-                  <Recordings pieceId={piece.id} />
-                </details>
-              </li>
-              ))}
-            </ul>
-          ) : (
-            !error && <p>No pieces yet. Create your first one.</p>
-          )}
-        </>
+  if (view === "piece" && selectedPiece) {
+    return (
+      <section>
+        <button
+          type="button"
+          className="back-button"
+          onClick={returnToList}
+        >
+          ← My pieces
+        </button>
+
+        <div className="page-heading">
+          <div>
+            <h1 ref={headingRef} tabIndex={-1}>
+              {selectedPiece.title}
+            </h1>
+            <p className="muted">{selectedPiece.instrument}</p>
+          </div>
+        </div>
+
+        <div className="recordings-content">
+          <Recordings
+            key={selectedPiece.id}
+            pieceId={selectedPiece.id}
+          />
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section>
+      <div className="page-heading">
+        <h1 ref={headingRef} tabIndex={-1}>My pieces</h1>
+
+        <button
+          type="button"
+          className="secondary"
+          aria-expanded={showDetails}
+          aria-controls="pieces-details"
+          onClick={() => setShowDetails((previous) => !previous)}
+        >
+          Details
+        </button>
+      </div>
+
+      {showDetails && (
+        <div id="pieces-details" className="details-panel">
+          <p>
+            Keep recordings together under a piece or exercise.
+            Open a piece to upload an attempt, listen to recordings
+            and revisit your comments.
+          </p>
+        </div>
       )}
 
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
+      <div className="pieces-toolbar">
+        <label className="visually-hidden" htmlFor="pieces-search">
+          Search pieces or instruments
+        </label>
+
+        <input
+          id="pieces-search"
+          type="search"
+          placeholder="Search pieces or instruments"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+
+        <button type="button" onClick={openCreate} disabled={loading}>
+          + New piece
+        </button>
+      </div>
+
+      {error && <p className="error-message" role="alert">{error}</p>}
+      {notice && <p className="success-message" role="status">{notice}</p>}
+
+      {loading ? (
+        <p role="status">Loading pieces…</p>
+      ) : filteredPieces.length > 0 ? (
+        <ul className="pieces-list">
+          {filteredPieces.map((piece) => (
+            <li className="piece-card" key={piece.id}>
+              <div className="piece-card-copy">
+                <h2>{piece.title}</h2>
+                <p>{piece.instrument}</p>
+              </div>
+
+              <button
+                type="button"
+                aria-label={`Open piece: ${piece.title}`}
+                onClick={() => openPiece(piece)}
+              >
+                Open piece
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        !error && (
+          <div className="empty-state">
+            <h2>{search ? "No matching pieces" : "Your practice starts here"}</h2>
+            <p>
+              {search
+                ? "Try another title or instrument."
+                : "Create a piece or exercise to organise your recordings."}
+            </p>
+          </div>
+        )
+      )}
     </section>
   );
 }
