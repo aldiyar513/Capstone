@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import Comments from "./Comments";
+import Passages from "./Passages";
 
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
@@ -157,7 +158,22 @@ export default function RecordingPlayer({ recordingId }) {
           <p>
             {formatTime(currentTime)} / {formatTime(duration)}
           </p>
+          <Passages
+            key={recordingId}
+            recordingId={recordingId}
+            audioRef={audioRef}
+            onSeek={(milliseconds) => {
+              const audio = audioRef.current;
 
+              if (!audio || audio.readyState < 1) return;
+
+              const seconds = milliseconds / 1000;
+
+              audio.currentTime = Number.isFinite(audio.duration)
+                ? Math.min(Math.max(0, seconds), audio.duration)
+                : Math.max(0, seconds);
+            }}
+          />
           <Comments
             recordingId={recordingId}
             captureTimestamp={captureTimestamp}

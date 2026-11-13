@@ -1,0 +1,176 @@
+.passages {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #c6d5d8;
+  color: #203b43;
+  min-width: 0;
+}
+
+.passages .passages-header,
+.passages .passage-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.passages h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.passages h3 {
+  margin: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+
+.passages button {
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid #377b87;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #327987, #245e6c);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.passages button[type="submit"] {
+  margin: 0;
+}
+
+.passages button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.passages .passage-secondary {
+  background: #ffffffb3;
+  border-color: #9bb3b8;
+  color: #203b43;
+}
+
+.passages .passage-time {
+  background: #dceee8;
+  border-color: #9bb8b3;
+  color: #203b43;
+  font-variant-numeric: tabular-nums;
+}
+
+.passages button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+
+.passages :focus-visible {
+  outline: 3px solid #176171;
+  outline-offset: 3px;
+}
+
+.passages .passage-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #c6d5d8;
+  border-radius: 16px;
+  background: #ffffffd9;
+}
+
+.passages input,
+.passages textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #7c969d;
+  border-radius: 8px;
+  background: #fff;
+  color: #203b43;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.passages textarea {
+  resize: vertical;
+}
+
+.passages input::placeholder,
+.passages textarea::placeholder {
+  color: #5c737b;
+}
+
+.passages .passage-boundaries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.passages .passage-boundary {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.passages .passage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.passages .passages-list {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.passages .passage-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #c6d5d8;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(231, 240, 238, 0.65)
+  );
+}
+
+.passages .passage-note {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.passages .passages-empty {
+  color: #5c737b;
+}
+
+.passages .passage-delete-confirm {
+  padding-top: 12px;
+  border-top: 1px solid #c6d5d8;
+}
+
+.passages .passage-delete-confirm p {
+  margin: 0 0 12px;
+}
+
+@media (max-width: 540px) {
+  .passages .passage-boundaries {
+    grid-template-columns: 1fr;
+  }
+
+  .passages .passage-form,
+  .passages .passage-card {
+    padding: 16px;
+  }
+}
