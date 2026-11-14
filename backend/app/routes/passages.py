@@ -6,7 +6,7 @@ from app.db import get_connection
 
 passages_bp = Blueprint("passages", __name__)
 
-EDITABLE_FIELDS = {"label", "start_ms", "end_ms", "note"}
+EDITABLE_FIELDS = {"label", "start_ms", "end_ms"}
 MAX_TIME_MS = 2_147_483_647
 
 
@@ -34,7 +34,7 @@ def read_payload():
 
     if set(data) - EDITABLE_FIELDS:
         return None, (
-            "Only label, start_ms, end_ms and note can be provided."
+            "Only label, start_ms and end_ms can be provided."
         )
 
     return data, None
@@ -44,7 +44,7 @@ def validate_passage(data, duration_ms):
     label = data.get("label")
     start_ms = data.get("start_ms")
     end_ms = data.get("end_ms")
-    note = data.get("note", "")
+    note = ""
 
     if not isinstance(label, str):
         return None, "A passage label is required."

@@ -46,7 +46,7 @@ async function passageRequest(url, options = {}) {
   return result;
 }
 
-export default function Passages({ recordingId, audioRef, onSeek }) {
+export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
   const inputId = useId();
   const labelRef = useRef(null);
 
@@ -249,6 +249,7 @@ export default function Passages({ recordingId, audioRef, onSeek }) {
 
       setNotice(editingId ? "Passage updated." : "Passage saved.");
       closeForm();
+      onChanged?.();
     } catch (error) {
       // Keep the form and entered values available for retrying.
       setError(error.message || "Could not save the passage.");
@@ -274,6 +275,7 @@ export default function Passages({ recordingId, audioRef, onSeek }) {
       );
       setConfirmDeleteId(null);
       setNotice("Passage deleted.");
+      onChanged?.();
     } catch (error) {
       setError(error.message || "Could not delete the passage.");
     } finally {
@@ -476,6 +478,7 @@ export default function Passages({ recordingId, audioRef, onSeek }) {
                       setConfirmDeleteId(passage.id);
                       setError("");
                       setNotice("");
+                      
                     }}
                     disabled={busy || formOpen}
                   >

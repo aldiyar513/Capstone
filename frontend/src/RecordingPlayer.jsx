@@ -7,10 +7,10 @@ function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
 
   const wholeSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(wholeSeconds / 60);
-  const remainingSeconds = wholeSeconds % 60;
 
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+  return `${Math.floor(wholeSeconds / 60)}:${String(
+    wholeSeconds % 60
+  ).padStart(2, "0")}`;
 }
 
 export default function RecordingPlayer({ recordingId }) {
@@ -22,8 +22,8 @@ export default function RecordingPlayer({ recordingId }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [revision, setRevision] = useState(0);
+  const [passagesRevision, setPassagesRevision] = useState(0);
 
-  // Load the audio automatically when the recording is opened.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -83,14 +83,20 @@ export default function RecordingPlayer({ recordingId }) {
   function captureTimestamp() {
     const audio = audioRef.current;
 
-    if (!audio || audio.readyState < 1) return null;
+    if (
+      !audio ||
+      audio.readyState < 1 ||
+      !Number.isFinite(audio.currentTime)
+    ) {
+      return null;
+    }
 
     audio.pause();
 
     return Math.floor(audio.currentTime * 1000);
   }
 
-  function seekToComment(timestampMs) {
+  function seekToTime(timestampMs) {
     const audio = audioRef.current;
 
     if (
@@ -108,6 +114,10 @@ export default function RecordingPlayer({ recordingId }) {
       : targetTime;
 
     setCurrentTime(audio.currentTime);
+  }
+
+  function handlePassagesChanged() {
+    setPassagesRevision((previous) => previous + 1);
   }
 
   return (
@@ -158,26 +168,21 @@ export default function RecordingPlayer({ recordingId }) {
           <p>
             {formatTime(currentTime)} / {formatTime(duration)}
           </p>
+
           <Passages
-            key={recordingId}
+            key={`passages-${recordingId}`}
             recordingId={recordingId}
             audioRef={audioRef}
-            onSeek={(milliseconds) => {
-              const audio = audioRef.current;
-
-              if (!audio || audio.readyState < 1) return;
-
-              const seconds = milliseconds / 1000;
-
-              audio.currentTime = Number.isFinite(audio.duration)
-                ? Math.min(Math.max(0, seconds), audio.duration)
-                : Math.max(0, seconds);
-            }}
+            onSeek={seekToTime}
+            onChanged={handlePassagesChanged}
           />
+
           <Comments
+            key={`comments-${recordingId}`}
             recordingId={recordingId}
             captureTimestamp={captureTimestamp}
-            onSeek={seekToComment}
+            onSeek={seekToTime}
+            passagesRevision={passagesRevision}
           />
         </>
       )}

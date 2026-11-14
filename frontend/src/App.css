@@ -1140,3 +1140,59 @@ body #root {
     transition: none;
   }
 }
+.comments .comment-target-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.comments .comment-target-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #7c969d;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #203b43;
+  font: inherit;
+}
+
+.comments .comment-target-field select:focus-visible {
+  outline: 3px solid #176171;
+  outline-offset: 3px;
+}
+
+.comments .comment-target-field select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.comments .comment-content {
+  min-width: 0;
+  padding-top: 8px;
+}
+
+.comments .comment-content .comment-body {
+  margin: 0;
+  padding-top: 0;
+}
+
+.comments .comment-passage-label {
+  margin: 0 0 6px;
+  color: #42656d;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.comments .comment-timestamp {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .comments .comment-content {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+}
