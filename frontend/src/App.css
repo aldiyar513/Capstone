@@ -1196,3 +1196,121 @@ body #root {
     padding-top: 0;
   }
 }
+
+.player-time {
+  margin: 10px 0 18px;
+  color: #5c737b;
+  font-variant-numeric: tabular-nums;
+}
+
+.practice-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #c6d5d8;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(231, 240, 238, 0.65)
+  );
+}
+
+.practice-controls .practice-control-field {
+  display: grid;
+  gap: 8px;
+  min-width: 150px;
+}
+
+.practice-controls .practice-passage-field {
+  flex: 1;
+  min-width: 220px;
+}
+
+.practice-controls label {
+  color: #203b43;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.practice-controls select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #7c969d;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #203b43;
+  font: inherit;
+}
+
+.practice-controls .practice-control-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.practice-controls button {
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid #9bb3b8;
+  border-radius: 10px;
+  background: #ffffffb3;
+  color: #203b43;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.practice-controls .practice-loop[aria-pressed="true"] {
+  background: #176171;
+  border-color: #176171;
+  color: #ffffff;
+}
+
+.practice-controls button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+
+.practice-controls button:disabled,
+.practice-controls select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.practice-controls :focus-visible {
+  outline: 3px solid #176171;
+  outline-offset: 3px;
+}
+
+.practice-loop-status {
+  margin: 10px 0 0;
+  color: #42656d;
+  font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .practice-controls {
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  .practice-controls .practice-control-field,
+  .practice-controls .practice-passage-field {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .practice-controls .practice-control-actions {
+    width: 100%;
+  }
+
+  .practice-controls .practice-control-actions button {
+    flex: 1;
+  }
+}
