@@ -9,6 +9,7 @@ from app.routes.health import health_bp
 from app.routes.recordings import recordings_bp
 from app.routes.comments import comments_bp
 from app.routes.passages import passages_bp
+from app.routes.practice_goals import practice_goals_bp
 
 def create_app():
     backend_dir = Path(__file__).resolve().parent.parent
@@ -51,4 +52,5 @@ def create_app():
     app.register_blueprint(recordings_bp, url_prefix="/api/v1")
     app.register_blueprint(comments_bp, url_prefix="/api/v1")
     app.register_blueprint(passages_bp, url_prefix="/api/v1")
+    app.register_blueprint(practice_goals_bp, url_prefix="/api/v1") 
     return app
