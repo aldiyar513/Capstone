@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import Recordings from "./Recordings";
+import PracticeGoals from "./PracticeGoals";
 
 async function piecesRequest(method = "GET", body) {
   const { data, error } = await supabase.auth.getSession();
@@ -222,6 +223,10 @@ export default function Pieces() {
         <div className="recordings-content">
           <Recordings
             key={selectedPiece.id}
+            pieceId={selectedPiece.id}
+          />
+          <PracticeGoals
+            key={`goals-${selectedPiece.id}`}
             pieceId={selectedPiece.id}
           />
         </div>

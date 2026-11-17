@@ -1,0 +1,175 @@
+.practice-goals {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #c6d5d8;
+  color: #203b43;
+  min-width: 0;
+}
+
+.practice-goals .goals-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.practice-goals h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.practice-goals h3 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.practice-goals h4 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.practice-goals button {
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 10px 16px;
+  border: 1px solid #377b87;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #327987, #245e6c);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.practice-goals button[type="submit"] {
+  margin: 0;
+  justify-self: start;
+}
+
+.practice-goals .goals-secondary {
+  background: #ffffffb3;
+  border-color: #9bb3b8;
+  color: #203b43;
+}
+
+.practice-goals button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.practice-goals button:not(:disabled):hover {
+  filter: brightness(0.96);
+}
+
+.practice-goals :focus-visible {
+  outline: 3px solid #176171;
+  outline-offset: 3px;
+}
+
+.practice-goals .goals-form,
+.practice-goals .goals-field {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  min-width: 0;
+}
+
+.practice-goals input,
+.practice-goals select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 12px;
+  border: 1px solid #7c969d;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #203b43;
+  font: inherit;
+}
+
+.practice-goals input::placeholder {
+  color: #5c737b;
+}
+
+.practice-goals .goals-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.practice-goals .goal-details {
+  margin-top: 24px;
+}
+
+.practice-goals .goals-link-panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #c6d5d8;
+  border-radius: 14px;
+  background: #ffffffb3;
+}
+
+.practice-goals .goals-link-panel .goals-field,
+.practice-goals .goals-link-panel .goals-form {
+  margin-top: 0;
+}
+
+.practice-goals .goals-link-panel > button {
+  justify-self: start;
+}
+
+.practice-goals .goals-muted {
+  color: #5c737b;
+  line-height: 1.5;
+}
+
+.practice-goals .goal-passages-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.practice-goals .goal-passage-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #c6d5d8;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.9),
+    rgba(231, 240, 238, 0.65)
+  );
+}
+
+.practice-goals .goal-passage-text {
+  min-width: 0;
+}
+
+.practice-goals .goal-passage-text p {
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+
+.practice-goals .goal-passage-range {
+  color: #42656d;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 540px) {
+  .practice-goals .goal-passage-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
