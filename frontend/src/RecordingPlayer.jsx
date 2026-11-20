@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import Comments from "./Comments";
 import Passages from "./Passages";
+import WaveformPlayer from "./WaveformPlayer";
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -9,10 +10,10 @@ function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
 
   const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainingSeconds = wholeSeconds % 60;
 
-  return `${Math.floor(wholeSeconds / 60)}:${String(
-    wholeSeconds % 60
-  ).padStart(2, "0")}`;
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
 async function authenticatedGet(url, signal) {
@@ -43,7 +44,6 @@ async function authenticatedGet(url, signal) {
   return result;
 }
 
-// Reset the player when a different recording is opened.
 export default function RecordingPlayer({ recordingId }) {
   return <Player key={recordingId} recordingId={recordingId} />;
 }
@@ -94,7 +94,7 @@ function Player({ recordingId }) {
   const passageControlsDisabled =
     !validRange || passagesLoading || Boolean(passagesError);
 
-  // Load the recording automatically.
+  // Load the recording's signed playback URL.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -139,7 +139,7 @@ function Player({ recordingId }) {
     return () => controller.abort();
   }, [recordingId, revision]);
 
-  // Keep the selected passage's playback boundaries up to date.
+  // Keep the selected passage and loop boundaries up to date.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -185,17 +185,17 @@ function Player({ recordingId }) {
     return () => controller.abort();
   }, [recordingId, passagesRevision]);
 
-  // Change playback speed while preserving pitch.
+  // Apply playback speed to the shared audio element.
   useEffect(() => {
     const audio = audioRef.current;
 
-    if (audio) {
-      audio.playbackRate = speed;
-      audio.preservesPitch = true;
-    }
+    if (!audio) return;
+
+    audio.playbackRate = speed;
+    audio.preservesPitch = true;
   }, [speed, url]);
 
-  // Repeat the selected passage while looping is enabled.
+  // Loop within the selected passage.
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -256,7 +256,9 @@ function Player({ recordingId }) {
       } catch {
         if (!disposed) {
           setLoopEnabled(false);
-          setPlayError("Playback stopped. Press Play to continue.");
+          setPlayError(
+            "Playback stopped. Press Play to continue."
+          );
         }
       }
     }
@@ -266,7 +268,9 @@ function Player({ recordingId }) {
     audio.addEventListener("timeupdate", onTimeUpdate);
     audio.addEventListener("ended", restartAtEnd);
 
-    if (!audio.paused) startWatching();
+    if (!audio.paused) {
+      startWatching();
+    }
 
     return () => {
       disposed = true;
@@ -277,7 +281,13 @@ function Player({ recordingId }) {
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("ended", restartAtEnd);
     };
-  }, [loopEnabled, validRange, startSeconds, endSeconds, url]);
+  }, [
+    loopEnabled,
+    validRange,
+    startSeconds,
+    endSeconds,
+    url,
+  ]);
 
   function captureTimestamp() {
     const audio = audioRef.current;
@@ -306,7 +316,6 @@ function Player({ recordingId }) {
       return;
     }
 
-    // A comment or passage selection can leave the current loop.
     setLoopEnabled(false);
     setPlayError("");
 
@@ -325,7 +334,6 @@ function Player({ recordingId }) {
     setPlayError("");
 
     if (passage) {
-      // Include newly saved or edited passages immediately.
       setPassages((previous) => [
         ...previous.filter((item) => item.id !== passage.id),
         passage,
@@ -364,6 +372,7 @@ function Player({ recordingId }) {
     if (!audio || passageControlsDisabled) return;
 
     setPlayError("");
+
     audio.currentTime = startSeconds;
     setCurrentTime(startSeconds);
 
@@ -411,10 +420,12 @@ function Player({ recordingId }) {
 
       {url && (
         <>
+          {/* One shared audio element, controlled by the waveform. */}
           <audio
             ref={audioRef}
             key={`${recordingId}-${revision}`}
-            controls
+            hidden
+            style={{ display: "none" }}
             preload="metadata"
             src={url}
             onLoadedMetadata={handleMetadata}
@@ -435,13 +446,18 @@ function Player({ recordingId }) {
                   "If it still fails, the format may be unsupported."
               );
             }}
-          >
-            Your browser does not support audio playback.
-          </audio>
+          />
 
-          <p className="player-time">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </p>
+          <WaveformPlayer
+            key={`${recordingId}-${revision}`}
+            audioRef={audioRef}
+            url={url}
+            ready={ready}
+            currentTime={currentTime}
+            duration={duration}
+            selectedPassage={selectedPassage}
+            onSeek={seekToTime}
+          />
 
           <Passages
             recordingId={recordingId}
