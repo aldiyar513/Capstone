@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import "./Passages.css";
 
@@ -8,22 +8,32 @@ function formatTime(milliseconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-function sortPassages(items) {
-  return [...items].sort(
-    (a, b) =>
-      a.start_ms - b.start_ms ||
-      a.created_at.localeCompare(b.created_at) ||
-      a.id.localeCompare(b.id)
-  );
+// Overlapping passages occupy separate timeline rows.
+function arrangePassages(passages) {
+  const ends = [];
+
+  const items = [...passages]
+    .sort((a, b) => a.start_ms - b.start_ms || a.end_ms - b.end_ms)
+    .map((passage) => {
+      let row = ends.findIndex((end) => end <= passage.start_ms);
+
+      if (row === -1) row = ends.length;
+
+      ends[row] = passage.end_ms;
+
+      return { ...passage, row };
+    });
+
+  return { items, rows: Math.max(1, ends.length) };
 }
 
-async function passageRequest(url, options = {}) {
+async function passageRequest(path, options = {}) {
   const { data, error } = await supabase.auth.getSession();
 
   if (error) throw error;
   if (!data.session) throw new Error("Please log in first.");
 
-  const response = await fetch(url, {
+  const response = await fetch(path, {
     ...options,
     headers: {
       Authorization: `Bearer ${data.session.access_token}`,
@@ -36,19 +46,24 @@ async function passageRequest(url, options = {}) {
   const result = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(result?.error || "Could not complete the passage request.");
+    throw new Error(result?.error || "Could not complete the request.");
   }
 
-  if (!result) {
-    throw new Error("The server returned an unexpected response.");
-  }
+  if (!result) throw new Error("Unexpected server response.");
 
   return result;
 }
 
-export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
+export default function Passages({
+  recordingId,
+  audioRef,
+  duration,
+  currentTime,
+  selectedId,
+  onSelect,
+  onChanged,
+}) {
   const inputId = useId();
-  const labelRef = useRef(null);
 
   const [passages, setPassages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,16 +75,22 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
   const [label, setLabel] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
-  const [note, setNote] = useState("");
 
-  const [saving, setSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const busy = saving || deletingId !== null;
   const url = `/api/v1/recordings/${recordingId}/passages`;
+  const selected = passages.find((passage) => passage.id === selectedId);
+
+  const durationMs =
+    Number.isFinite(duration) && duration > 0 ? duration * 1000 : 0;
+
+  const { items, rows } = arrangePassages(passages);
+
+  const playheadPercent = durationMs
+    ? Math.min(100, Math.max(0, (currentTime * 1000 / durationMs) * 100))
+    : 0;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -83,21 +104,17 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
           signal: controller.signal,
         });
 
-        if (!controller.signal.aborted) {
-          if (!Array.isArray(result.items)) {
-            throw new Error("The server returned an unexpected passage list.");
-          }
+        if (!Array.isArray(result.items)) {
+          throw new Error("Could not read saved passages.");
+        }
 
-          setPassages(sortPassages(result.items));
+        if (!controller.signal.aborted) {
+          setPassages(result.items);
         }
       } catch (error) {
-        if (!controller.signal.aborted) {
-          setLoadError(error.message || "Could not load passages.");
-        }
+        if (!controller.signal.aborted) setLoadError(error.message);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
 
@@ -106,11 +123,7 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
     return () => controller.abort();
   }, [url, revision]);
 
-  useEffect(() => {
-    if (formOpen) labelRef.current?.focus();
-  }, [formOpen, editingId]);
-
-  function currentPosition() {
+  function capturePosition() {
     const audio = audioRef.current;
 
     if (
@@ -121,110 +134,85 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
       throw new Error("Wait for the audio to load first.");
     }
 
-    return (Math.floor(audio.currentTime * 1000) / 1000).toString();
+    return String(Math.floor(audio.currentTime * 1000) / 1000);
   }
 
-  function openNewPassage() {
+  function newPassage() {
     setError("");
     setNotice("");
 
     try {
-      const position = currentPosition();
+      const position = capturePosition();
 
       setEditingId(null);
       setLabel("");
       setStart(position);
       setEnd("");
-      setNote("");
-      setConfirmDeleteId(null);
       setFormOpen(true);
     } catch (error) {
       setError(error.message);
     }
   }
 
-  function capturePosition(boundary) {
-    setError("");
+  function editPassage() {
+    if (!selected) return;
 
-    try {
-      const position = currentPosition();
-
-      if (boundary === "start") {
-        setStart(position);
-      } else {
-        setEnd(position);
-      }
-    } catch (error) {
-      setError(error.message);
-    }
-  }
-
-  function closeForm() {
-    setFormOpen(false);
-    setEditingId(null);
-    setError("");
-  }
-
-  function openEdit(passage) {
-    setEditingId(passage.id);
-    setLabel(passage.label);
-    setStart(String(passage.start_ms / 1000));
-    setEnd(String(passage.end_ms / 1000));
-    setNote(passage.note);
-    setConfirmDeleteId(null);
+    setEditingId(selected.id);
+    setLabel(selected.label);
+    setStart(String(selected.start_ms / 1000));
+    setEnd(String(selected.end_ms / 1000));
     setError("");
     setNotice("");
     setFormOpen(true);
   }
 
-  async function handleSave(event) {
+  function captureBoundary(boundary) {
+    setError("");
+
+    try {
+      const value = capturePosition();
+
+      if (boundary === "start") setStart(value);
+      else setEnd(value);
+    } catch (error) {
+      setError(error.message);
+    }
+  }
+
+  async function savePassage(event) {
     event.preventDefault();
     if (busy) return;
 
     setError("");
     setNotice("");
 
-    const startSeconds = Number(start);
-    const endSeconds = Number(end);
+    const startMs = Math.round(Number(start) * 1000);
+    const endMs = Math.round(Number(end) * 1000);
 
     if (
       !start.trim() ||
       !end.trim() ||
-      !Number.isFinite(startSeconds) ||
-      !Number.isFinite(endSeconds)
-    ) {
-      setError("Enter a valid start and end time.");
-      return;
-    }
-
-    const startMs = Math.round(startSeconds * 1000);
-    const endMs = Math.round(endSeconds * 1000);
-
-    if (
+      !Number.isSafeInteger(startMs) ||
+      !Number.isSafeInteger(endMs) ||
       startMs < 0 ||
       endMs <= startMs ||
       endMs > 2_147_483_647
     ) {
-      setError("Choose an end time after the start and a nonnegative start.");
+      setError("Choose a valid start time and an end time after it.");
       return;
     }
 
-    const duration = audioRef.current?.duration;
-
-    if (
-      Number.isFinite(duration) &&
-      endMs > Math.round(duration * 1000)
-    ) {
-      setError("The passage cannot extend beyond the recording.");
+    if (!durationMs || endMs > Math.round(durationMs)) {
+      setError("The passage must fit within the recording.");
       return;
     }
 
     if (!label.trim()) {
-      setError("Give the passage a label.");
+      setError("Give the passage a short label.");
       return;
     }
 
-    setSaving(true);
+    setBusy(true);
 
     try {
       const saved = await passageRequest(
@@ -235,94 +223,221 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
             label: label.trim(),
             start_ms: startMs,
             end_ms: endMs,
-            note,
           }),
         }
       );
 
-      setPassages((previous) =>
-        sortPassages([
-          ...previous.filter((passage) => passage.id !== saved.id),
-          saved,
-        ])
-      );
+      setPassages((previous) => [
+        ...previous.filter((passage) => passage.id !== saved.id),
+        saved,
+      ]);
 
-      setNotice(editingId ? "Passage updated." : "Passage saved.");
-      closeForm();
+      setFormOpen(false);
+      setEditingId(null);
+      setNotice("Passage saved.");
       onChanged?.();
+      onSelect(saved);
     } catch (error) {
-      // Keep the form and entered values available for retrying.
       setError(error.message || "Could not save the passage.");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
-  async function handleDelete(passageId) {
-    if (busy) return;
+  async function deletePassage() {
+    if (!selected || busy) return;
 
-    setDeletingId(passageId);
+    const confirmed = window.confirm(
+      `Delete "${selected.label}"? Its comments will remain as timestamped comments.`
+    );
+
+    if (!confirmed) return;
+
+    setBusy(true);
     setError("");
     setNotice("");
 
     try {
-      await passageRequest(`/api/v1/passages/${passageId}`, {
+      await passageRequest(`/api/v1/passages/${selected.id}`, {
         method: "DELETE",
       });
 
       setPassages((previous) =>
-        previous.filter((passage) => passage.id !== passageId)
+        previous.filter((passage) => passage.id !== selected.id)
       );
-      setConfirmDeleteId(null);
-      setNotice("Passage deleted.");
+
+      onSelect(null);
       onChanged?.();
+      setNotice("Passage deleted. Its comments were kept.");
     } catch (error) {
       setError(error.message || "Could not delete the passage.");
     } finally {
-      setDeletingId(null);
+      setBusy(false);
     }
   }
 
   return (
     <section
-      className="passages"
+      className="passage-map"
       aria-labelledby={`${inputId}-heading`}
     >
-      <header className="passages-header">
-        <h2 id={`${inputId}-heading`}>Saved passages</h2>
+      <header className="passage-map-header">
+        <h2 id={`${inputId}-heading`}>Passages</h2>
 
         <button
           type="button"
-          onClick={openNewPassage}
-          disabled={busy || loading || Boolean(loadError) || formOpen}
+          className="passage-map-secondary"
+          onClick={newPassage}
+          disabled={
+            busy || loading || Boolean(loadError) || formOpen || !durationMs
+          }
         >
-          + New passage
+          + Mark passage
         </button>
       </header>
 
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
+      {loading && <p role="status">Loading passages…</p>}
+
+      {loadError && (
+        <div>
+          <p role="alert">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setRevision((previous) => previous + 1)}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
+      {!loading && !loadError && durationMs > 0 && (
+        <>
+          <div
+            className="passage-map-track"
+            style={{ height: `${rows * 42 + 12}px` }}
+            role="group"
+            aria-label="Saved passage ranges"
+          >
+            {items.map((passage, index) => {
+              const left = Math.min(
+                100,
+                Math.max(0, passage.start_ms / durationMs * 100)
+              );
+
+              const right = Math.min(
+                100,
+                Math.max(left, passage.end_ms / durationMs * 100)
+              );
+
+              return (
+                <button
+                  key={passage.id}
+                  type="button"
+                  className="passage-map-range"
+                  aria-pressed={selectedId === passage.id}
+                  aria-label={`${passage.label}, ${formatTime(
+                    passage.start_ms
+                  )} to ${formatTime(passage.end_ms)}`}
+                  title={`${passage.label} · ${formatTime(
+                    passage.start_ms
+                  )}–${formatTime(passage.end_ms)}`}
+                  style={{
+                    left: `${left}%`,
+                    width: `${right - left}%`,
+                    top: `${passage.row * 42 + 6}px`,
+                  }}
+                  disabled={busy || formOpen}
+                  onClick={() => {
+                    setError("");
+                    setNotice("");
+                    onSelect(passage);
+                  }}
+                >
+                  <span>{index + 1}. {passage.label}</span>
+                </button>
+              );
+            })}
+
+            <div
+              className="passage-map-playhead"
+              style={{ left: `${playheadPercent}%` }}
+              aria-hidden="true"
+            />
+          </div>
+
+          <div className="passage-map-scale" aria-hidden="true">
+            <span>0:00</span>
+            <span>{formatTime(durationMs)}</span>
+          </div>
+
+          {passages.length === 0 && (
+            <p className="passage-map-hint">
+              Mark a section you want to practise again.
+            </p>
+          )}
+        </>
+      )}
+
+      {selected && !formOpen && (
+        <div className="passage-map-selection">
+          <div>
+            <strong>{selected.label}</strong>
+            <span className="passage-map-selection-time">
+              {formatTime(selected.start_ms)}–{formatTime(selected.end_ms)}
+            </span>
+          </div>
+
+          <div className="passage-map-actions">
+            <button
+              type="button"
+              className="passage-map-secondary"
+              onClick={editPassage}
+              disabled={busy}
+            >
+              Edit
+            </button>
+
+            <button
+              type="button"
+              className="passage-map-secondary"
+              onClick={deletePassage}
+              disabled={busy}
+            >
+              Delete
+            </button>
+
+            <button
+              type="button"
+              className="passage-map-secondary"
+              onClick={() => onSelect(null)}
+              disabled={busy}
+            >
+              Clear selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {formOpen && (
-        <form className="passage-form" onSubmit={handleSave}>
-          <h3>{editingId ? "Edit passage" : "New passage"}</h3>
+        <form className="passage-map-form" onSubmit={savePassage}>
+          <h3>{editingId ? "Edit passage" : "Mark a passage"}</h3>
 
           <label htmlFor={`${inputId}-label`}>Label</label>
           <input
-            ref={labelRef}
             id={`${inputId}-label`}
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            placeholder="For example, difficult string change"
+            placeholder="For example, second phrase"
             maxLength={120}
             disabled={busy}
             required
+            autoFocus
           />
 
-          <div className="passage-boundaries">
-            <div className="passage-boundary">
+          <div className="passage-map-boundaries">
+            <div>
               <label htmlFor={`${inputId}-start`}>
-                Start time (seconds)
+                Start (seconds)
               </label>
               <input
                 id={`${inputId}-start`}
@@ -336,17 +451,17 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
               />
               <button
                 type="button"
-                className="passage-secondary"
-                onClick={() => capturePosition("start")}
+                className="passage-map-secondary"
+                onClick={() => captureBoundary("start")}
                 disabled={busy}
               >
                 Set start here
               </button>
             </div>
 
-            <div className="passage-boundary">
+            <div>
               <label htmlFor={`${inputId}-end`}>
-                End time (seconds)
+                End (seconds)
               </label>
               <input
                 id={`${inputId}-end`}
@@ -360,8 +475,8 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
               />
               <button
                 type="button"
-                className="passage-secondary"
-                onClick={() => capturePosition("end")}
+                className="passage-map-secondary"
+                onClick={() => captureBoundary("end")}
                 disabled={busy}
               >
                 Set end here
@@ -369,26 +484,20 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
             </div>
           </div>
 
-          <label htmlFor={`${inputId}-note`}>Note (optional)</label>
-          <textarea
-            id={`${inputId}-note`}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="What would you like to work on?"
-            maxLength={5000}
-            rows={3}
-            disabled={busy}
-          />
-
-          <div className="passage-actions">
+          <div className="passage-map-actions">
             <button type="submit" disabled={busy}>
-              {saving ? "Saving…" : "Save passage"}
+              {busy ? "Saving…" : "Save passage"}
             </button>
+
             <button
               type="button"
-              className="passage-secondary"
-              onClick={closeForm}
+              className="passage-map-secondary"
               disabled={busy}
+              onClick={() => {
+                setFormOpen(false);
+                setEditingId(null);
+                setError("");
+              }}
             >
               Cancel
             </button>
@@ -396,100 +505,8 @@ export default function Passages({recordingId,audioRef,onSeek,onChanged}) {
         </form>
       )}
 
-      {loading ? (
-        <p role="status">Loading passages…</p>
-      ) : loadError ? (
-        <div>
-          <p role="alert">{loadError}</p>
-          <button
-            type="button"
-            className="passage-secondary"
-            onClick={() => setRevision((previous) => previous + 1)}
-          >
-            Try again
-          </button>
-        </div>
-      ) : passages.length === 0 ? (
-        <p className="passages-empty">
-          Save a difficult section to return to it later.
-        </p>
-      ) : (
-        <ul className="passages-list">
-          {passages.map((passage) => (
-            <li className="passage-card" key={passage.id}>
-              <div className="passage-card-heading">
-                <h3>{passage.label}</h3>
-
-                <button
-                  type="button"
-                  className="passage-time"
-                  onClick={() => onSeek(passage.start_ms)}
-                  aria-label={`Go to ${passage.label}, starting at ${formatTime(
-                    passage.start_ms
-                  )}`}
-                >
-                  {formatTime(passage.start_ms)}
-                  {" – "}
-                  {formatTime(passage.end_ms)}
-                </button>
-              </div>
-
-              {passage.note && (
-                <p className="passage-note">{passage.note}</p>
-              )}
-
-              {confirmDeleteId === passage.id ? (
-                <div className="passage-delete-confirm">
-                  <p>Delete this saved passage?</p>
-                  <div className="passage-actions">
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(passage.id)}
-                      disabled={busy}
-                    >
-                      {deletingId === passage.id
-                        ? "Deleting…"
-                        : "Delete passage"}
-                    </button>
-                    <button
-                      type="button"
-                      className="passage-secondary"
-                      onClick={() => setConfirmDeleteId(null)}
-                      disabled={busy}
-                    >
-                      Keep passage
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="passage-actions">
-                  <button
-                    type="button"
-                    className="passage-secondary"
-                    onClick={() => openEdit(passage)}
-                    disabled={busy || formOpen}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="passage-secondary"
-                    onClick={() => {
-                      setConfirmDeleteId(passage.id);
-                      setError("");
-                      setNotice("");
-                      
-                    }}
-                    disabled={busy || formOpen}
-                  >
-                    Delete
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
     </section>
   );
 }

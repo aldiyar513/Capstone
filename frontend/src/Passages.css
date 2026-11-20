@@ -1,13 +1,11 @@
-.passages {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #c6d5d8;
-  color: #203b43;
+.passage-map {
   min-width: 0;
+  margin: 20px 0;
+  color: #203b43;
 }
 
-.passages .passages-header,
-.passages .passage-card-heading {
+.passage-map .passage-map-header,
+.passage-map .passage-map-selection {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -15,162 +13,183 @@
   gap: 12px;
 }
 
-.passages h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.passages h3 {
+.passage-map h2 {
   margin: 0;
   font-size: 17px;
-  overflow-wrap: anywhere;
 }
 
-.passages button {
-  width: auto;
-  min-height: 44px;
+.passage-map h3 {
   margin: 0;
-  padding: 10px 16px;
+  font-size: 18px;
+}
+
+.passage-map button {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  padding: 9px 14px;
   border: 1px solid #377b87;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #327987, #245e6c);
-  color: #fff;
+  border-radius: 9px;
+  background: #176171;
+  color: #ffffff;
   font: inherit;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.passages button[type="submit"] {
+.passage-map button[type="submit"] {
   margin: 0;
 }
 
-.passages button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.passages .passage-secondary {
+.passage-map .passage-map-secondary {
   background: #ffffffb3;
   border-color: #9bb3b8;
   color: #203b43;
 }
 
-.passages .passage-time {
-  background: #dceee8;
-  border-color: #9bb8b3;
-  color: #203b43;
-  font-variant-numeric: tabular-nums;
+.passage-map button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.passages button:not(:disabled):hover {
-  filter: brightness(0.96);
-}
-
-.passages :focus-visible {
+.passage-map :focus-visible {
   outline: 3px solid #176171;
   outline-offset: 3px;
 }
 
-.passages .passage-form {
-  display: grid;
-  gap: 12px;
-  margin-top: 20px;
-  padding: 20px;
-  border: 1px solid #c6d5d8;
-  border-radius: 16px;
-  background: #ffffffd9;
-}
-
-.passages input,
-.passages textarea {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-  padding: 12px;
-  border: 1px solid #7c969d;
+.passage-map .passage-map-track {
+  position: relative;
+  margin-top: 14px;
   border-radius: 8px;
-  background: #fff;
+  background: #e5edee;
+}
+
+.passage-map .passage-map-range {
+  position: absolute;
+  box-sizing: border-box;
+  min-width: 6px;
+  min-height: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #709c99;
+  border-radius: 6px;
+  background: #cce4df;
   color: #203b43;
-  font: inherit;
-  line-height: 1.5;
+  text-align: left;
 }
 
-.passages textarea {
-  resize: vertical;
+.passage-map .passage-map-range span {
+  display: block;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 30px;
 }
 
-.passages input::placeholder,
-.passages textarea::placeholder {
+.passage-map .passage-map-range[aria-pressed="true"] {
+  background: #176171;
+  border-color: #104955;
+  color: #ffffff;
+  box-shadow: 0 0 0 2px #ffffff;
+  z-index: 2;
+}
+
+.passage-map .passage-map-range:not(:disabled):hover {
+  filter: brightness(0.95);
+}
+
+.passage-map .passage-map-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #a6502c;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.passage-map .passage-map-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
   color: #5c737b;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
-.passages .passage-boundaries {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+.passage-map .passage-map-selection {
+  margin-top: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #d0dddf;
 }
 
-.passages .passage-boundary {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
+.passage-map .passage-map-selection strong {
+  overflow-wrap: anywhere;
 }
 
-.passages .passage-actions {
+.passage-map .passage-map-selection-time {
+  display: inline-block;
+  margin-left: 12px;
+  color: #5c737b;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.passage-map .passage-map-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.passages .passages-list {
+.passage-map .passage-map-form {
   display: grid;
   gap: 12px;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.passages .passage-card {
-  display: grid;
-  gap: 14px;
+  margin-top: 16px;
   padding: 18px;
   border: 1px solid #c6d5d8;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(231, 240, 238, 0.65)
-  );
+  border-radius: 12px;
+  background: #ffffffd9;
 }
 
-.passages .passage-note {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  line-height: 1.5;
+.passage-map input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #7c969d;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #203b43;
+  font: inherit;
 }
 
-.passages .passages-empty {
+.passage-map .passage-map-boundaries {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.passage-map .passage-map-boundaries > div {
+  display: grid;
+  gap: 8px;
+}
+
+.passage-map .passage-map-hint {
+  margin: 8px 0 0;
   color: #5c737b;
-}
-
-.passages .passage-delete-confirm {
-  padding-top: 12px;
-  border-top: 1px solid #c6d5d8;
-}
-
-.passages .passage-delete-confirm p {
-  margin: 0 0 12px;
+  font-size: 14px;
 }
 
 @media (max-width: 540px) {
-  .passages .passage-boundaries {
+  .passage-map .passage-map-boundaries {
     grid-template-columns: 1fr;
   }
 
-  .passages .passage-form,
-  .passages .passage-card {
-    padding: 16px;
+  .passage-map .passage-map-selection-time {
+    display: block;
+    margin: 4px 0 0;
   }
 }

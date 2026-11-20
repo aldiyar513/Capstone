@@ -3,6 +3,8 @@ import { supabase } from "./lib/supabaseClient";
 import Comments from "./Comments";
 import Passages from "./Passages";
 
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 function formatTime(seconds) {
   if (!Number.isFinite(seconds)) return "0:00";
 
@@ -29,7 +31,9 @@ async function authenticatedGet(url, signal) {
   const result = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(result?.error || "Could not complete the request.");
+    throw new Error(
+      result?.error || "Could not complete the request."
+    );
   }
 
   if (!result) {
@@ -39,14 +43,9 @@ async function authenticatedGet(url, signal) {
   return result;
 }
 
-// Reset playback state completely when opening another recording.
+// Reset the player when a different recording is opened.
 export default function RecordingPlayer({ recordingId }) {
-  return (
-    <Player
-      key={recordingId}
-      recordingId={recordingId}
-    />
-  );
+  return <Player key={recordingId} recordingId={recordingId} />;
 }
 
 function Player({ recordingId }) {
@@ -72,7 +71,8 @@ function Player({ recordingId }) {
   const [passagesRevision, setPassagesRevision] = useState(0);
 
   const selectedPassage =
-    passages.find((passage) => passage.id === selectedPassageId) || null;
+    passages.find((passage) => passage.id === selectedPassageId) ||
+    null;
 
   const startSeconds = selectedPassage
     ? selectedPassage.start_ms / 1000
@@ -91,6 +91,10 @@ function Player({ recordingId }) {
       endSeconds <= duration + 0.001
   );
 
+  const passageControlsDisabled =
+    !validRange || passagesLoading || Boolean(passagesError);
+
+  // Load the recording automatically.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -111,7 +115,9 @@ function Player({ recordingId }) {
         );
 
         if (typeof result.url !== "string" || !result.url.trim()) {
-          throw new Error("No audio link was returned. Please try again.");
+          throw new Error(
+            "No audio link was returned. Please try again."
+          );
         }
 
         if (!controller.signal.aborted) {
@@ -133,6 +139,7 @@ function Player({ recordingId }) {
     return () => controller.abort();
   }, [recordingId, revision]);
 
+  // Keep the selected passage's playback boundaries up to date.
   useEffect(() => {
     const controller = new AbortController();
 
@@ -161,7 +168,9 @@ function Player({ recordingId }) {
         }
       } catch (error) {
         if (!controller.signal.aborted) {
-          setPassagesError(error.message || "Could not load passages.");
+          setPassagesError(
+            error.message || "Could not load passages."
+          );
           setLoopEnabled(false);
         }
       } finally {
@@ -176,6 +185,7 @@ function Player({ recordingId }) {
     return () => controller.abort();
   }, [recordingId, passagesRevision]);
 
+  // Change playback speed while preserving pitch.
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -185,7 +195,7 @@ function Player({ recordingId }) {
     }
   }, [speed, url]);
 
-  // Watch the selected range while looping is active.
+  // Repeat the selected passage while looping is enabled.
   useEffect(() => {
     const audio = audioRef.current;
 
@@ -236,6 +246,8 @@ function Player({ recordingId }) {
     }
 
     async function restartAtEnd() {
+      if (disposed) return;
+
       audio.currentTime = startSeconds;
       setCurrentTime(startSeconds);
 
@@ -259,6 +271,7 @@ function Player({ recordingId }) {
     return () => {
       disposed = true;
       stopWatching();
+
       audio.removeEventListener("play", startWatching);
       audio.removeEventListener("pause", stopWatching);
       audio.removeEventListener("timeupdate", onTimeUpdate);
@@ -293,7 +306,7 @@ function Player({ recordingId }) {
       return;
     }
 
-    // Allow a comment or passage link to leave the current loop.
+    // A comment or passage selection can leave the current loop.
     setLoopEnabled(false);
     setPlayError("");
 
@@ -306,16 +319,18 @@ function Player({ recordingId }) {
     setCurrentTime(audio.currentTime);
   }
 
-  function selectPassage(event) {
-    const id = event.target.value;
-
-    setSelectedPassageId(id);
+  function selectPassage(passage) {
+    setSelectedPassageId(passage?.id || "");
     setLoopEnabled(false);
     setPlayError("");
 
-    const passage = passages.find((item) => item.id === id);
-
     if (passage) {
+      // Include newly saved or edited passages immediately.
+      setPassages((previous) => [
+        ...previous.filter((item) => item.id !== passage.id),
+        passage,
+      ]);
+
       seekToTime(passage.start_ms);
     }
   }
@@ -323,7 +338,7 @@ function Player({ recordingId }) {
   function toggleLoop() {
     const audio = audioRef.current;
 
-    if (!audio || !validRange) return;
+    if (!audio || passageControlsDisabled) return;
 
     setPlayError("");
 
@@ -346,7 +361,7 @@ function Player({ recordingId }) {
   async function playPassage() {
     const audio = audioRef.current;
 
-    if (!audio || !validRange) return;
+    if (!audio || passageControlsDisabled) return;
 
     setPlayError("");
     audio.currentTime = startSeconds;
@@ -355,7 +370,9 @@ function Player({ recordingId }) {
     try {
       await audio.play();
     } catch {
-      setPlayError("Could not start playback. Try the player's Play button.");
+      setPlayError(
+        "Could not start playback. Try the player's Play button."
+      );
     }
   }
 
@@ -370,18 +387,18 @@ function Player({ recordingId }) {
   }
 
   function handlePassagesChanged() {
-    // Stop using old boundaries while the updated list loads.
     setLoopEnabled(false);
     setPassagesRevision((previous) => previous + 1);
   }
 
   return (
-    <div>
+    <div className="recording-player">
       {loading && <p role="status">Loading audio…</p>}
 
       {error && (
         <div>
           <p role="alert">{error}</p>
+
           <button
             type="button"
             onClick={() => setRevision((previous) => previous + 1)}
@@ -426,79 +443,64 @@ function Player({ recordingId }) {
             {formatTime(currentTime)} / {formatTime(duration)}
           </p>
 
+          <Passages
+            recordingId={recordingId}
+            audioRef={audioRef}
+            duration={duration}
+            currentTime={currentTime}
+            selectedId={selectedPassageId}
+            onSelect={selectPassage}
+            onChanged={handlePassagesChanged}
+          />
+
           <div className="practice-controls">
             <div className="practice-control-field">
-              <label htmlFor={`${inputId}-speed`}>Playback speed</label>
+              <label htmlFor={`${inputId}-speed`}>
+                Playback speed
+              </label>
 
               <select
                 id={`${inputId}-speed`}
                 value={speed}
-                onChange={(event) => setSpeed(Number(event.target.value))}
+                onChange={(event) =>
+                  setSpeed(Number(event.target.value))
+                }
                 disabled={!ready}
               >
-                {[0.5, 0.75, 1, 1.25, 1.5, 2].map((value) => (
+                {PLAYBACK_SPEEDS.map((value) => (
                   <option key={value} value={value}>
                     {value}×{value === 1 ? " · Normal" : ""}
                   </option>
                 ))}
 
-                {![0.5, 0.75, 1, 1.25, 1.5, 2].includes(speed) && (
+                {!PLAYBACK_SPEEDS.includes(speed) && (
                   <option value={speed}>{speed}×</option>
                 )}
               </select>
             </div>
 
-            <div className="practice-control-field practice-passage-field">
-              <label htmlFor={`${inputId}-passage`}>Practice passage</label>
+            {selectedPassage && (
+              <div className="practice-control-actions">
+                <button
+                  type="button"
+                  className="practice-secondary"
+                  onClick={playPassage}
+                  disabled={passageControlsDisabled}
+                >
+                  Play from start
+                </button>
 
-              <select
-                id={`${inputId}-passage`}
-                value={selectedPassageId}
-                onChange={selectPassage}
-                disabled={
-                  !ready || passagesLoading || Boolean(passagesError)
-                }
-              >
-                <option value="">
-                  {passagesLoading
-                    ? "Loading passages…"
-                    : passages.length
-                      ? "Select a saved passage"
-                      : "No saved passages yet"}
-                </option>
-
-                {passages.map((passage) => (
-                  <option key={passage.id} value={passage.id}>
-                    {passage.label}
-                    {" · "}
-                    {formatTime(passage.start_ms / 1000)}
-                    {"–"}
-                    {formatTime(passage.end_ms / 1000)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="practice-control-actions">
-              <button
-                type="button"
-                className="practice-secondary"
-                onClick={playPassage}
-                disabled={!validRange || passagesLoading || Boolean(passagesError)}
-              >
-                Play from start
-              </button>
-
-              <button
-                type="button"
-                className="practice-loop"
-                aria-pressed={loopEnabled}
-                onClick={toggleLoop}
-                disabled={!validRange || passagesLoading || Boolean(passagesError)}
-              >
-                {loopEnabled ? "Loop on" : "Loop off"}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  className="practice-loop"
+                  aria-pressed={loopEnabled}
+                  onClick={toggleLoop}
+                  disabled={passageControlsDisabled}
+                >
+                  {loopEnabled ? "Loop on" : "Loop off"}
+                </button>
+              </div>
+            )}
           </div>
 
           {loopEnabled && (
@@ -520,6 +522,7 @@ function Player({ recordingId }) {
           {passagesError && (
             <div>
               <p role="alert">{passagesError}</p>
+
               <button
                 type="button"
                 onClick={handlePassagesChanged}
@@ -529,13 +532,6 @@ function Player({ recordingId }) {
               </button>
             </div>
           )}
-
-          <Passages
-            recordingId={recordingId}
-            audioRef={audioRef}
-            onSeek={seekToTime}
-            onChanged={handlePassagesChanged}
-          />
 
           <Comments
             recordingId={recordingId}
