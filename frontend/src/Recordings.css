@@ -243,3 +243,115 @@ ul.recording-history-list > .recording-history-row {
     min-height: 44px;
   }
 }
+/* Recording comparison selection */
+
+.recording-compare-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 20px 0;
+  padding: 16px 20px;
+  border: 1px solid #c6d5d8;
+  border-radius: 14px;
+  background: #edf5f2;
+}
+
+.recording-compare-toolbar strong {
+  color: #203b43;
+}
+
+.recording-compare-toolbar p {
+  margin: 5px 0 0;
+  color: #5c737b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.recording-compare-actions,
+.recording-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.recording-compare-actions button,
+.recording-row-actions button {
+  width: auto;
+  margin: 0;
+}
+
+.recording-history-info {
+  min-width: 0;
+}
+
+.recording-history-info strong,
+.recording-history-info p {
+  overflow-wrap: anywhere;
+}
+
+.recording-history-row.is-comparison-selected {
+  border-color: #43848a;
+  background: #edf6f3;
+  box-shadow: inset 0 0 0 1px #43848a;
+}
+
+.recording-history-row .recording-compare-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin: 0;
+  color: #203b43;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.recording-history-row .recording-compare-choice input {
+  appearance: auto;
+  display: inline-block;
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: #176171;
+  cursor: pointer;
+}
+
+.recording-history-row .recording-compare-choice input:disabled {
+  cursor: not-allowed;
+}
+
+.recording-history-row .recording-compare-choice input:disabled + span {
+  color: #687c82;
+}
+
+.recording-compare-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.recording-compare-choice input:focus-visible {
+  outline: 3px solid #176171;
+  outline-offset: 4px;
+}
+
+@media (max-width: 700px) {
+  .recording-history-list .recording-history-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .recording-row-actions {
+    justify-content: space-between;
+  }
+
+  .recording-compare-actions {
+    width: 100%;
+  }
+}

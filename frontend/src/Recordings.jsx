@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { supabase } from "./lib/supabaseClient";
 import RecordingPlayer from "./RecordingPlayer";
+import RecordingComparison from "./RecordingComparison";
 import "./Recordings.css";
 
 async function getToken() {
@@ -69,13 +70,22 @@ function uploadAudio(url, token, formData, onProgress) {
   });
 }
 
+// Reset the workspace when a different piece is opened.
 export default function Recordings({ pieceId }) {
+  return <RecordingsWorkspace key={pieceId} pieceId={pieceId} />;
+}
+
+function RecordingsWorkspace({ pieceId }) {
   const inputId = useId();
   const fileInput = useRef(null);
   const uploadDialog = useRef(null);
+  const compareButton = useRef(null);
 
   const [recordings, setRecordings] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [comparisonIds, setComparisonIds] = useState([]);
+  const [comparing, setComparing] = useState(false);
+
   const [title, setTitle] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,8 +107,13 @@ export default function Recordings({ pieceId }) {
 
       try {
         const token = await getToken();
+
+        if (controller.signal.aborted) return;
+
         const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
           signal: controller.signal,
         });
 
@@ -108,12 +123,23 @@ export default function Recordings({ pieceId }) {
           throw new Error(result.error || "Could not load recordings.");
         }
 
+        if (!Array.isArray(result.items)) {
+          throw new Error("The server returned an unexpected recording list.");
+        }
+
         if (!controller.signal.aborted) {
-          setRecordings(
-            [...result.items].sort(
-              (a, b) =>
-                new Date(b.created_at).getTime() -
-                new Date(a.created_at).getTime()
+          const items = [...result.items].sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
+          );
+
+          setRecordings(items);
+
+          // Keep selections only while those recordings still exist.
+          setComparisonIds((previous) =>
+            previous.filter((id) =>
+              items.some((recording) => recording.id === id)
             )
           );
         }
@@ -146,7 +172,9 @@ export default function Recordings({ pieceId }) {
 
   async function handleUpload(event) {
     event.preventDefault();
+
     if (uploading) return;
+
     setUploadError("");
     setNotice("");
 
@@ -198,8 +226,50 @@ export default function Recordings({ pieceId }) {
     setSelectedId(recordingId);
   }
 
+  function toggleComparison(recordingId) {
+    setComparisonIds((previous) => {
+      if (previous.includes(recordingId)) {
+        return previous.filter((id) => id !== recordingId);
+      }
+
+      if (previous.length >= 2) return previous;
+
+      return [...previous, recordingId];
+    });
+  }
+
+  function openComparison() {
+    if (comparisonIds.length !== 2) return;
+
+    setNotice("");
+    setComparing(true);
+  }
+
+  function closeComparison() {
+    setComparing(false);
+
+    // Restore keyboard focus after the history screen renders.
+    requestAnimationFrame(() => {
+      compareButton.current?.focus();
+    });
+  }
+
   const selectedRecording =
     recordings.find((recording) => recording.id === selectedId) || null;
+
+  // Preserve selection order: first selected is A, second is B.
+  const comparisonRecordings = comparisonIds
+    .map((id) => recordings.find((recording) => recording.id === id))
+    .filter(Boolean);
+
+  if (comparing && comparisonRecordings.length === 2) {
+    return (
+      <RecordingComparison
+        recordings={comparisonRecordings}
+        onBack={closeComparison}
+      />
+    );
+  }
 
   if (selectedRecording) {
     return (
@@ -249,6 +319,7 @@ export default function Recordings({ pieceId }) {
     <section>
       <div className="recording-history-heading">
         <h3>Recording history</h3>
+
         <button
           type="button"
           aria-haspopup="dialog"
@@ -286,7 +357,9 @@ export default function Recordings({ pieceId }) {
             ref={fileInput}
             type="file"
             accept=".mp3,.wav,.m4a"
-            onChange={(event) => setFile(event.target.files[0] || null)}
+            onChange={(event) =>
+              setFile(event.target.files[0] || null)
+            }
             disabled={uploading}
             required
           />
@@ -302,6 +375,7 @@ export default function Recordings({ pieceId }) {
             >
               Cancel
             </button>
+
             <button type="submit" disabled={uploading}>
               {uploading ? "Uploading…" : "Upload recording"}
             </button>
@@ -315,6 +389,7 @@ export default function Recordings({ pieceId }) {
               max="100"
               aria-label="Transfer to backend"
             />
+
             <p>
               {progress < 100
                 ? `Sending to backend: ${progress}%`
@@ -327,34 +402,109 @@ export default function Recordings({ pieceId }) {
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
 
-      {loading ? (
-        <p>Loading recordings…</p>
-      ) : recordings.length > 0 ? (
-        <ul className="recording-history-list">
-          {recordings.map((recording) => (
-            <li key={recording.id} className="recording-history-row">
-              <div>
-                <strong>{recording.title}</strong>
-                <p>
-                  Uploaded {new Date(recording.created_at).toLocaleString()}
-                  {recording.duration_ms != null && (
-                    <>{" · "}{formatDuration(recording.duration_ms)}</>
-                  )}
-                </p>
-              </div>
+      {!loading && recordings.length >= 2 && (
+        <div className="recording-compare-toolbar">
+          <div>
+            <strong>Compare attempts</strong>
+            <p id={`${inputId}-compare-help`} role="status">
+              {comparisonIds.length === 0
+                ? "Select two recordings to compare."
+                : comparisonIds.length === 1
+                  ? "1 of 2 selected. Choose one more recording."
+                  : "2 of 2 selected. Ready to compare."}
+            </p>
+          </div>
 
+          <div className="recording-compare-actions">
+            {comparisonIds.length > 0 && (
               <button
                 type="button"
-                aria-label={`Open recording: ${recording.title}`}
-                onClick={() => openRecording(recording.id)}
+                className="review-back"
+                onClick={() => setComparisonIds([])}
               >
-                Open recording
+                Clear selection
               </button>
-            </li>
-          ))}
+            )}
+
+            <button
+              ref={compareButton}
+              type="button"
+              onClick={openComparison}
+              disabled={comparisonIds.length !== 2}
+            >
+              Compare selected
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <p role="status">Loading recordings…</p>
+      ) : recordings.length > 0 ? (
+        <ul className="recording-history-list">
+          {recordings.map((recording) => {
+            const comparisonIndex = comparisonIds.indexOf(recording.id);
+            const checked = comparisonIndex !== -1;
+            const selectionDisabled =
+              !checked && comparisonIds.length === 2;
+
+            return (
+              <li
+                key={recording.id}
+                className={`recording-history-row${
+                  checked ? " is-comparison-selected" : ""
+                }`}
+              >
+                <div className="recording-history-info">
+                  <strong>{recording.title}</strong>
+
+                  <p>
+                    Uploaded{" "}
+                    {new Date(recording.created_at).toLocaleString()}
+                    {recording.duration_ms != null && (
+                      <>{" · "}{formatDuration(recording.duration_ms)}</>
+                    )}
+                  </p>
+                </div>
+
+                <div className="recording-row-actions">
+                  {recordings.length >= 2 && (
+                    <label className="recording-compare-choice">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={selectionDisabled}
+                        onChange={() => toggleComparison(recording.id)}
+                        aria-label={`Select ${recording.title} for comparison`}
+                        aria-describedby={`${inputId}-compare-help`}
+                      />
+                      <span>
+                        {checked
+                          ? `Selected ${comparisonIndex === 0 ? "A" : "B"}`
+                          : "Compare"}
+                      </span>
+                    </label>
+                  )}
+
+                  <button
+                    type="button"
+                    aria-label={`Open recording: ${recording.title}`}
+                    onClick={() => openRecording(recording.id)}
+                  >
+                    Open recording
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : (
-        !error && <p>No recordings yet. Select “Upload recording” to add your first attempt.</p>
+        !error && (
+          <p>
+            No recordings yet. Select “Upload recording” to add your
+            first attempt.
+          </p>
+        )
       )}
     </section>
   );
