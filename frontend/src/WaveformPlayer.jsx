@@ -23,6 +23,7 @@ export default function WaveformPlayer({
   duration,
   selectedPassage,
   onSeek,
+  onBeforePlay,
 }) {
   const waveRef = useRef(null);
   const helpId = useId();
@@ -161,6 +162,7 @@ export default function WaveformPlayer({
     }
 
     try {
+      onBeforePlay?.();
       await audio.play();
     } catch (error) {
       if (error.name !== "AbortError") {

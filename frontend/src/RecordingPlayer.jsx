@@ -51,6 +51,7 @@ export default function RecordingPlayer({ recordingId }) {
 function Player({ recordingId }) {
   const inputId = useId();
   const audioRef = useRef(null);
+  const rangeClearedRef = useRef(false);
 
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(true);
@@ -195,23 +196,32 @@ function Player({ recordingId }) {
     audio.preservesPitch = true;
   }, [speed, url]);
 
-  // Loop within the selected passage.
+  // Stop the shared media element when its recording is replaced or removed.
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => audio?.pause();
+  }, [url]);
+
+  // Enforce passage playback whether or not repetition is enabled.
   useEffect(() => {
     const audio = audioRef.current;
 
-    if (!audio || !loopEnabled || !validRange) return;
+    if (!audio || !validRange) return;
 
     let frameId = null;
     let disposed = false;
 
     function enforceRange() {
-      if (
-        !audio.seeking &&
-        (audio.currentTime < startSeconds ||
-          audio.currentTime >= endSeconds)
-      ) {
-        audio.currentTime = startSeconds;
-        setCurrentTime(startSeconds);
+      if (rangeClearedRef.current || audio.seeking) return;
+      if (audio.currentTime >= endSeconds) {
+        if (loopEnabled) {
+          audio.currentTime = startSeconds;
+          setCurrentTime(startSeconds);
+        } else {
+          audio.pause();
+          audio.currentTime = endSeconds;
+          setCurrentTime(endSeconds);
+        }
       }
     }
 
@@ -221,11 +231,15 @@ function Player({ recordingId }) {
       if (disposed || audio.paused || audio.ended) return;
 
       enforceRange();
-      frameId = requestAnimationFrame(tick);
+      if (!audio.paused) frameId = requestAnimationFrame(tick);
     }
 
     function startWatching() {
-      enforceRange();
+      if (!rangeClearedRef.current &&
+          (audio.currentTime < startSeconds || audio.currentTime >= endSeconds)) {
+        audio.currentTime = startSeconds;
+        setCurrentTime(startSeconds);
+      }
 
       if (frameId === null) {
         frameId = requestAnimationFrame(tick);
@@ -246,7 +260,7 @@ function Player({ recordingId }) {
     }
 
     async function restartAtEnd() {
-      if (disposed) return;
+      if (disposed || rangeClearedRef.current || !loopEnabled) return;
 
       audio.currentTime = startSeconds;
       setCurrentTime(startSeconds);
@@ -305,7 +319,7 @@ function Player({ recordingId }) {
     return Math.floor(audio.currentTime * 1000);
   }
 
-  function seekToTime(timestampMs) {
+  function seekToTime(timestampMs, selectingPassage = false) {
     const audio = audioRef.current;
 
     if (
@@ -316,19 +330,28 @@ function Player({ recordingId }) {
       return;
     }
 
-    setLoopEnabled(false);
     setPlayError("");
 
     const seconds = Math.max(0, timestampMs / 1000);
 
-    audio.currentTime = Number.isFinite(audio.duration)
+    const target = Number.isFinite(audio.duration)
       ? Math.min(seconds, audio.duration)
       : seconds;
+
+    if (!selectingPassage && selectedPassage &&
+        (target < startSeconds || target >= endSeconds)) {
+      // Disable the old listener immediately, before React commits the update.
+      rangeClearedRef.current = true;
+      setSelectedPassageId("");
+      setLoopEnabled(false);
+    }
+    audio.currentTime = target;
 
     setCurrentTime(audio.currentTime);
   }
 
   function selectPassage(passage) {
+    rangeClearedRef.current = !passage;
     setSelectedPassageId(passage?.id || "");
     setLoopEnabled(false);
     setPlayError("");
@@ -339,7 +362,7 @@ function Player({ recordingId }) {
         passage,
       ]);
 
-      seekToTime(passage.start_ms);
+      seekToTime(passage.start_ms, true);
     }
   }
 
@@ -364,6 +387,15 @@ function Player({ recordingId }) {
     }
 
     setLoopEnabled(true);
+  }
+
+  function preparePlayback() {
+    const audio = audioRef.current;
+    if (audio && validRange && !rangeClearedRef.current &&
+        (audio.currentTime < startSeconds || audio.currentTime >= endSeconds)) {
+      audio.currentTime = startSeconds;
+      setCurrentTime(startSeconds);
+    }
   }
 
   async function playPassage() {
@@ -458,6 +490,7 @@ function Player({ recordingId }) {
             duration={duration}
             selectedPassage={selectedPassage}
             onSeek={seekToTime}
+            onBeforePlay={preparePlayback}
           />
 
           <Passages
