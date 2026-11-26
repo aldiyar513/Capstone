@@ -2,7 +2,7 @@ import math
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Blueprint, current_app, g, jsonify, request
+from flask import Blueprint, Response, current_app, g, jsonify, request
 from mutagen import MutagenError
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
@@ -255,3 +255,50 @@ def get_playback_url(recording_id):
         "url": url,
         "expires_at": expires_at.isoformat(),
     }), 200
+
+@recordings_bp.get("/recordings/<uuid:recording_id>/waveform-audio")
+@require_auth
+def get_waveform_audio(recording_id):
+    # Fetch through the same origin: waveform decoding needs readable bytes,
+    # unlike native audio playback from a cross-origin signed URL.
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT r.storage_key, r.content_type
+                FROM public.recordings AS r
+                JOIN public.pieces AS p ON p.id = r.piece_id
+                WHERE r.id = %s AND p.owner_id = %s
+                  AND r.upload_status = 'ready'
+                """,
+                (recording_id, g.user["id"]),
+            )
+            recording = cursor.fetchone()
+
+    if recording is None:
+        return jsonify({"error": "Recording not found."}), 404
+
+    try:
+        result = get_storage_client().get_object(
+            Bucket=current_app.config["R2_BUCKET_NAME"],
+            Key=recording["storage_key"],
+        )
+    except Exception:
+        current_app.logger.exception("Could not load waveform audio")
+        return jsonify({"error": "Waveform audio is temporarily unavailable."}), 503
+
+    body = result["Body"]
+
+    def chunks():
+        try:
+            yield from body.iter_chunks(chunk_size=64 * 1024)
+        finally:
+            body.close()
+
+    response = Response(chunks(), content_type=recording["content_type"])
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if "ContentLength" in result:
+        response.content_length = result["ContentLength"]
+    response.call_on_close(body.close)
+    return response

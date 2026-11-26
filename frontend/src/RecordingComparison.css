@@ -1,6 +1,7 @@
 .recording-comparison {
   width: 100%;
   min-width: 0;
+  container-type: inline-size;
 }
 
 .recording-comparison .comparison-page-header {
@@ -34,7 +35,16 @@
 
 .recording-comparison .comparison-stack {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
   gap: 24px;
+}
+
+/* Use the available content width, including when navigation is expanded. */
+@container (min-width: 900px) {
+  .recording-comparison .comparison-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .recording-comparison .comparison-card {

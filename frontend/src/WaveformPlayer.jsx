@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
+import { supabase } from "./lib/supabaseClient";
 import "./WaveformPlayer.css";
 
 function timeLabel(seconds) {
@@ -15,6 +16,7 @@ function timeLabel(seconds) {
 
 export default function WaveformPlayer({
   audioRef,
+  recordingId,
   url,
   ready,
   currentTime,
@@ -63,6 +65,8 @@ export default function WaveformPlayer({
     if (!audio || !waveRef.current || !url) return;
 
     let active = true;
+    let wave;
+    const controller = new AbortController();
 
     setBuilding(true);
     setWaveError("");
@@ -84,47 +88,65 @@ export default function WaveformPlayer({
     audio.addEventListener("ended", syncPlayback);
     audio.addEventListener("volumechange", syncVolume);
 
-    const wave = WaveSurfer.create({
-      container: waveRef.current,
-      media: audio,
-      url,
-      height: 160,
-      waveColor: "#79a7ac",
-      progressColor: "#176171",
-      cursorColor: "#203b43",
-      cursorWidth: 2,
-      barWidth: 3,
-      barGap: 3,
-      barRadius: 3,
-      normalize: true,
-      interact: false,
-      hideScrollbar: true,
-      mediaControls: false,
-    });
-
-    wave.on("ready", () => {
-      if (active) setBuilding(false);
-    });
-
-    wave.on("error", () => {
+    async function loadWaveform() {
+      const { data, error } = await supabase.auth.getSession();
       if (!active) return;
+      if (error || !data.session) throw new Error("Please log in again.");
 
+      wave = WaveSurfer.create({
+        container: waveRef.current,
+        media: audio,
+        url: `/api/v1/recordings/${recordingId}/waveform-audio`,
+        fetchParams: {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+          signal: controller.signal,
+        },
+        height: 160,
+        waveColor: "#79a7ac",
+        progressColor: "#176171",
+        cursorColor: "#203b43",
+        cursorWidth: 2,
+        barWidth: 3,
+        barGap: 3,
+        barRadius: 3,
+        normalize: true,
+        interact: false,
+        hideScrollbar: true,
+        mediaControls: false,
+      });
+
+      wave.on("ready", () => {
+        if (active) setBuilding(false);
+      });
+
+      wave.on("error", () => {
+        if (!active) return;
+
+        setBuilding(false);
+        setWaveError(
+          "The waveform could not load. You can still try playing the audio."
+        );
+      });
+
+    }
+
+    loadWaveform().catch(() => {
+      if (!active) return;
       setBuilding(false);
-      setWaveError(
-        "The waveform could not load. You can still try playing the audio."
-      );
+      setWaveError("The waveform could not load. Try again or reload the audio.");
     });
 
     return () => {
       active = false;
-      wave.destroy();
+      controller.abort();
+      wave?.destroy();
 
       audio.removeEventListener("play", syncPlayback);
       audio.removeEventListener("pause", syncPlayback);
       audio.removeEventListener("ended", syncPlayback);
       audio.removeEventListener("volumechange", syncVolume);
     };
-  }, [audioRef, url, retry]);
+  }, [audioRef, recordingId, url, retry]);
 
   async function togglePlayback() {
     const audio = audioRef.current;

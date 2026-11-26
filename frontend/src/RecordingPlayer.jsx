@@ -449,6 +449,7 @@ function Player({ recordingId }) {
           />
 
           <WaveformPlayer
+            recordingId={recordingId}
             key={`${recordingId}-${revision}`}
             audioRef={audioRef}
             url={url}
